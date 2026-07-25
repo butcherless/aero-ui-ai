@@ -10,8 +10,12 @@ object Layout {
       cls := "app-shell",
       Sidebar(),
       div(
-        cls := "app-content",
-        child <-- content
+        cls := "app-main",
+        TopBar(),
+        div(
+          cls := "app-content",
+          child <-- content
+        )
       )
     )
 }

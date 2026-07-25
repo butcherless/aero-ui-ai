@@ -74,10 +74,62 @@ body {
 
 /* -- Main content -- */
 
+.app-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
 .app-content {
   flex: 1;
   padding: 32px;
   min-width: 0;
+}
+
+/* -- Top bar -- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 32px;
+  border-bottom: 1px solid #23262f;
+  flex-shrink: 0;
+}
+
+.topbar-logo {
+  height: 40px;
+  width: auto;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #1a1d24;
+  border: 1px solid #2a2e38;
+}
+
+.topbar-username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e5e7eb;
+  white-space: nowrap;
+}
+
+.topbar-divider {
+  width: 1px;
+  height: 20px;
+  background: #262a33;
+  margin: 0 4px;
 }
 
 .page h1 {
