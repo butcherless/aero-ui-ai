@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Aviation admin panel (reactive SPA) built with **Scala 3 + Scala.js + Laminar**, served by **Vite**. The entities (Countries, Airports, Airlines, Aircraft, Flights, Flight Instances, Routes) and their fields are driven directly by an OpenAPI spec for an "Aviation Hexagonal API" backend at `http://localhost:8080`. UI text is in English.
 
+The backend's source lives in the sibling repo `../aero-hex-ai` ("aero-hex-ai"). Claude's role here is **frontend only**: that repo is **read-only** — look at it freely for reference (its OpenAPI spec, GitHub Actions workflows, sbt plugin/library versions, conventions) but never create, edit, or delete files inside it. Port anything useful back into this repo's own files instead.
+
 ## Commands
 
 Development (two terminals):
