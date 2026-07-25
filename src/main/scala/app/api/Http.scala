@@ -22,7 +22,8 @@ object Http {
   val baseUrl = ""
 
   /** Shown by every entity page when the initial load fails and it falls back to sample data. */
-  val backendUnreachableMessage: String = "Could not connect to the backend (http://localhost:8080). Showing sample data."
+  val backendUnreachableMessage: String =
+    "Could not connect to the backend (http://localhost:8080). Showing sample data."
 
   given ExecutionContext = scala.concurrent.ExecutionContext.global
 

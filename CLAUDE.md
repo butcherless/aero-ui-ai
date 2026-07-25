@@ -37,6 +37,8 @@ sbt scalafmtAll scalafixAll              # apply
 sbt scalafmtCheckAll "scalafixAll --check"   # CI-style check, no changes
 ```
 
+**Always run `sbt scalafmtAll scalafixAll` and commit the result before pushing** — CI runs the check-only form (`scalafmtCheckAll "scalafixAll --check"`) and fails the build on any diff.
+
 ## Architecture
 
 **Layering**, bottom to top:
