@@ -15,6 +15,7 @@ src/main/scala/app/
   components/MasterDetailShell.scala    # shared list + detail-panel page shell
   components/EntityCrudPage.scala       # generic list/search/select/create/edit page shell (built on the two below)
   components/EntityTable.scala          # generic searchable/selectable list table
+  components/Pagination.scala           # Previous/Page N/Next bar for paginated lists
   components/FormField.scala            # label+input building blocks for detail/create forms
   components/FormActions.scala          # shared Save/Delete/Cancel/Close button rows
   components/AsyncAction.scala          # shared "run a Future, track saving/error state" helper
@@ -31,7 +32,9 @@ src/test/scala/app/
   components/*Spec.scala                # component + EntityCrudPage state-machine tests
 ```
 
-Each entity page (Countries, Airports, Airlines, Aircraft, Flights, Flight Instances, Routes) tries the real backend first and falls back to sample data with a visible banner if it's unreachable, so the UI is fully demoable without a live backend.
+Each entity page (Countries, Airports, Airlines, Aircraft, Flights, Flight Instances, Routes) tries the real backend first and falls back to sample data with a visible banner if it's unreachable, so the UI is fully demoable without a live backend. List pages fetch 20 items per page with Previous/Next pagination.
+
+The backend itself has no CORS support, so `vite.config.js` proxies `/api` requests to `http://localhost:8080` and the app talks to that proxy (same-origin) rather than the backend directly — see "Running in development" below.
 
 ## Requirements
 
@@ -55,6 +58,8 @@ npm run dev
 ```
 
 Open http://localhost:5173 — every Scala code change recompiles (terminal 1) and Vite reloads the page automatically.
+
+For the app to show real data, the backend must be running at `http://localhost:8080`; Vite's dev-server proxy forwards `/api/*` there (see `vite.config.js`) so browser requests stay same-origin, since the backend itself doesn't send CORS headers. Without a reachable backend, each page falls back to sample data with a banner.
 
 ## Production build
 
@@ -81,6 +86,10 @@ sbt scalafixAll         # apply lint rules (unused imports, import ordering)
 sbt scalafmtCheckAll    # CI-style check, no changes
 sbt "scalafixAll --check"
 ```
+
+## Continuous Integration
+
+`.github/workflows/ci.yml` runs on every push/PR to `main`: format/lint check, `sbt test`, `sbt fullLinkJS`, then `npm run build`.
 
 ## Suggested next steps
 
