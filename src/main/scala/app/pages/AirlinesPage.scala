@@ -1,6 +1,7 @@
 package app.pages
 
 import app.api.AirlinesApi
+import app.api.Http
 import app.api.Http.given
 import app.components.AsyncAction
 import app.components.EntityCrudPage
@@ -10,6 +11,8 @@ import app.models.AirlineDto
 import app.models.CreateAirlineRequest
 import app.models.UpdateAirlineRequest
 import com.raquo.laminar.api.L._
+
+import scala.concurrent.Future
 
 object AirlinesPage {
 
@@ -91,10 +94,22 @@ object AirlinesPage {
     )
   }
 
+  // The backend's airline search (/airlines/search) requires 3+ characters and returns every match unpaginated, so
+  // fetchPage slices that full match list itself to keep Prev/Next behaving the same way it does for a plain list.
+  private val MinNameSearchLength = 3
+
+  private def fetchAirlines(page: Int, query: String): Future[List[AirlineDto]] =
+    if (query.trim.length >= MinNameSearchLength)
+      AirlinesApi.search(query.trim).map { matches =>
+        val pageSize = Http.defaultPageSize
+        matches.slice((page - 1) * pageSize, page * pageSize)
+      }
+    else AirlinesApi.list(page = page)
+
   def apply(): HtmlElement =
     EntityCrudPage[AirlineDto](
       title = "Airlines",
-      searchPlaceholder = "Search airline (name, ICAO, alias)…",
+      searchPlaceholder = "Search airline by name (3+ characters)…",
       columns = List(
         "ICAO" -> (_.icao),
         "Name" -> (_.name),
@@ -107,9 +122,11 @@ object AirlinesPage {
           a.icao.toLowerCase.contains(needle) ||
           a.alias.exists(_.toLowerCase.contains(needle)),
       sampleData = sampleData,
-      fetchPage = (page, _) => AirlinesApi.list(page = page),
+      fetchPage = fetchAirlines,
       renderCreateForm = createForm,
       renderEditForm = editForm,
-      emptySelectionHint = "Select an airline from the list, or click \"Add\"."
+      emptySelectionHint = "Select an airline from the list, or click \"Add\".",
+      serverSearch = true,
+      minSearchLength = MinNameSearchLength
     )
 }

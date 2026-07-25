@@ -1,6 +1,7 @@
 package app.pages
 
 import app.api.AirportsApi
+import app.api.Http
 import app.api.Http.given
 import app.components.AsyncAction
 import app.components.EntityCrudPage
@@ -11,6 +12,7 @@ import app.models.CreateAirportRequest
 import app.models.UpdateAirportRequest
 import com.raquo.laminar.api.L._
 
+import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 
@@ -101,10 +103,22 @@ object AirportsPage {
     )
   }
 
+  // The backend's airport search (/airports/search) requires 3+ characters and returns every match unpaginated, so
+  // fetchPage slices that full match list itself to keep Prev/Next behaving the same way it does for a plain list.
+  private val MinNameSearchLength = 3
+
+  private def fetchAirports(page: Int, query: String): Future[List[AirportDto]] =
+    if (query.trim.length >= MinNameSearchLength)
+      AirportsApi.search(query.trim).map { matches =>
+        val pageSize = Http.defaultPageSize
+        matches.slice((page - 1) * pageSize, page * pageSize)
+      }
+    else AirportsApi.list(page = page)
+
   def apply(): HtmlElement =
     EntityCrudPage[AirportDto](
       title = "Airports",
-      searchPlaceholder = "Search airport (name, city, IATA, ICAO)…",
+      searchPlaceholder = "Search airport by name (3+ characters)…",
       columns = List("IATA" -> (_.iata), "ICAO" -> (_.icaoCode), "Name" -> (_.name), "City" -> (_.city)),
       rowKey = _.iata,
       matchesSearch = (a, needle) =>
@@ -113,9 +127,11 @@ object AirportsPage {
           a.iata.toLowerCase.contains(needle) ||
           a.icaoCode.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchPage = (page, _) => AirportsApi.list(page = page),
+      fetchPage = fetchAirports,
       renderCreateForm = createForm,
       renderEditForm = editForm,
-      emptySelectionHint = "Select an airport from the list, or click \"Add\"."
+      emptySelectionHint = "Select an airport from the list, or click \"Add\".",
+      serverSearch = true,
+      minSearchLength = MinNameSearchLength
     )
 }

@@ -12,6 +12,9 @@ object AirlinesApi {
       base + Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
     )
 
+  def search(q: String): Future[List[AirlineDto]] =
+    Http.getJsonList[AirlineDto](s"$base/search" + Http.query("q" -> Some(q)))
+
   def create(req: CreateAirlineRequest): Future[AirlineDto] =
     Http.postJson[CreateAirlineRequest, AirlineDto](base, req)
 
