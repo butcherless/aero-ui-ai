@@ -24,7 +24,7 @@ class EntityCrudPageSpec extends LaminarMountSpec {
         rowKey = _.id,
         matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
         sampleData = Nil,
-        fetchPage = _ => Promise[List[Item]]().future, // never resolves
+        fetchPage = (_, _) => Promise[List[Item]]().future, // never resolves
         renderCreateForm = (onCreated, onCancel) =>
           div(
             button("do-create", onClick --> (_ => onCreated(Item("new", "New Item")))),

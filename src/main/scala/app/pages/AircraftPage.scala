@@ -99,7 +99,7 @@ object AircraftPage {
           a.description.toLowerCase.contains(needle) ||
           a.airlineIcao.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchPage = page => AircraftApi.list(page = page),
+      fetchPage = (page, _) => AircraftApi.list(page = page),
       renderCreateForm = createForm,
       renderEditForm = editForm,
       emptySelectionHint = "Select an aircraft from the list, or click \"Add\"."

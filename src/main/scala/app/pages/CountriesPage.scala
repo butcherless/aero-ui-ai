@@ -69,17 +69,24 @@ object CountriesPage {
     )
   }
 
+  // The backend's name filter requires at least this many characters; EntityCrudPage's minSearchLength keeps shorter
+  // queries from ever reaching fetchPage at all (except when cleared back to empty).
+  private val MinNameSearchLength = 3
+  private def nameFilter(query: String): Option[String] = Option.when(query.trim.nonEmpty)(query.trim)
+
   def apply(): HtmlElement =
     EntityCrudPage[CountryDto](
       title = "Countries",
-      searchPlaceholder = "Search country (name or code)…",
+      searchPlaceholder = "Search country by name (3+ characters)…",
       columns = List("Code" -> (_.code), "Name" -> (_.name)),
       rowKey = _.code,
       matchesSearch = (c, needle) => c.name.toLowerCase.contains(needle) || c.code.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchPage = page => CountriesApi.list(page = page),
+      fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
       renderCreateForm = createForm,
       renderEditForm = editForm,
-      emptySelectionHint = "Select a country from the list, or click \"Add\"."
+      emptySelectionHint = "Select a country from the list, or click \"Add\".",
+      minSearchLength = MinNameSearchLength,
+      serverSearch = true
     )
 }

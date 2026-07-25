@@ -107,7 +107,7 @@ object AirlinesPage {
           a.icao.toLowerCase.contains(needle) ||
           a.alias.exists(_.toLowerCase.contains(needle)),
       sampleData = sampleData,
-      fetchPage = page => AirlinesApi.list(page = page),
+      fetchPage = (page, _) => AirlinesApi.list(page = page),
       renderCreateForm = createForm,
       renderEditForm = editForm,
       emptySelectionHint = "Select an airline from the list, or click \"Add\"."

@@ -17,7 +17,10 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
 
   private case class Item(id: String, name: String)
 
-  private def buildPage(fetchPage: Int => Future[List[Item]], sampleData: List[Item] = Nil): dom.html.Element =
+  private def buildPage(
+      fetchPage: (Int, String) => Future[List[Item]],
+      sampleData: List[Item] = Nil
+  ): dom.html.Element =
     renderRoot(
       EntityCrudPage[Item](
         title = "Items",
@@ -35,7 +38,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
 
   it("renders the fetched items once the load succeeds") {
     val promise = Promise[List[Item]]()
-    val root = buildPage(fetchPage = _ => promise.future)
+    val root = buildPage(fetchPage = (_, _) => promise.future)
 
     promise.success(List(Item("1", "Alpha"), Item("2", "Beta")))
 
@@ -47,7 +50,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
 
   it("falls back to sample data with an error banner when the load fails") {
     val promise = Promise[List[Item]]()
-    val root = buildPage(fetchPage = _ => promise.future, sampleData = List(Item("s", "Sample Item")))
+    val root = buildPage(fetchPage = (_, _) => promise.future, sampleData = List(Item("s", "Sample Item")))
 
     promise.failure(new RuntimeException("network down"))
 
