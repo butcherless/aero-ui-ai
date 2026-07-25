@@ -1,0 +1,11 @@
+target/
+project/target/
+project/project/
+.bloop/
+.metals/
+.bsp/
+node_modules/
+dist/
+public/js/
+.DS_Store
+.idea/

@@ -1,0 +1,51 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project
+
+Aviation admin panel (reactive SPA) built with **Scala 3 + Scala.js + Laminar**, served by **Vite**. The entities (Countries, Airports, Airlines, Aircraft, Flights, Flight Instances, Routes) and their fields are driven directly by an OpenAPI spec for an "Aviation Hexagonal API" backend at `http://localhost:8080`. UI text is in English.
+
+## Commands
+
+Development (two terminals):
+
+```
+sbt ~fastLinkJS              # compiles Scala.js in watch mode → public/js/main.js
+npm install && npm run dev   # Vite dev server at http://localhost:5173
+```
+
+Production build:
+
+```
+sbt fullLinkJS && npm run build   # output in dist/
+```
+
+Tests (ScalaTest, run under Node+jsdom):
+
+```
+sbt test                                    # full suite
+sbt "testOnly app.components.EntityCrudPageSpec"   # single spec
+```
+
+Format/lint:
+
+```
+sbt scalafmtAll scalafixAll              # apply
+sbt scalafmtCheckAll "scalafixAll --check"   # CI-style check, no changes
+```
+
+## Architecture
+
+**Layering**, bottom to top:
+- `api/Http.scala` — the only place that touches `dom.fetch`; wraps it with upickle JSON (de)serialization and turns non-2xx responses into `Http.ApiError`. `api/*Api.scala` — one thin module per entity (`CountriesApi`, `AirportsApi`, ...), each just building paths/query strings and delegating to `Http`.
+- `models/Dtos.scala` — case classes matching the OpenAPI schemas exactly (`derives ReadWriter` via upickle). Note: `AirportDto`/`AirlineDto` do **not** include the country in GET responses even though it's required on create/update — that's the real API's shape, not a bug; `AirportsApi.countryOf` exists specifically to look it up separately.
+- `components/` — generic, entity-agnostic UI pieces. **`EntityCrudPage`** is the important one: it's a generic list/search/select/create/edit page shell (loading, sample-data fallback, client-side search filtering, row selection state) that a page instantiates with its columns, API calls, and create/edit form renderers. `EntityTable` (the list), `FormField` (label+input widgets), `FormActions` (Save/Delete/Cancel/Close button rows), and `AsyncAction.run` (the flip-saving/clear-error/run-Future/report-result pattern) are the reusable building blocks `EntityCrudPage` and the pages are built from.
+- `pages/*Page.scala` — one per entity. **Countries, Airports, Airlines, Aircraft, and Flights are thin**: each just calls `EntityCrudPage[Dto](...)` with its own field lists and a small `editForm`/`createForm` pair. **Routes and Flight Instances are hand-rolled, not `EntityCrudPage`**, because their API contracts don't fit standard CRUD — see below.
+- `router/AppRouter.scala` — minimal dependency-free router on the History API. Adding a page means: a `Page` case, a path mapping, a case in `App.scala`'s match, and a nav link in `Sidebar.scala`.
+
+**Why Routes and Flight Instances are special-cased**: the backend has no list-all/get-by-key/update/delete endpoints for routes (only create, browse-by-operating-airline, and airline-association endpoints), and Flight Instances is read-only (no create/update/delete at all). Don't assume a uniform pattern across all 7 pages — check which shape a given entity's endpoints actually support before copying a pattern from another page.
+
+**Sample-data fallback is intentional, not a bug**: every page tries the real backend first and falls back to a small hardcoded sample list with a visible `Http.backendUnreachableMessage` banner if the fetch fails. This keeps the app fully demoable without a running backend — don't "fix" this by removing the fallback or treating the banner as an error to suppress.
+
+**Testing**: no official Laminar testing library exists; the suite mirrors Laminar's own (unpublished) test setup using ScalaTest + `com.raquo::domtestutils`, running under Node+jsdom (`scalajs-env-jsdom-nodejs`, requires the `jsdom` npm package). `testkit/LaminarMountSpec`/`LaminarAsyncMountSpec` mount real Laminar elements via Laminar's own `render(...)` (not domtestutils' raw `mount()`, which wouldn't activate Signal/Var reactivity) and assert directly against the DOM — domtestutils' richer `expectNode(...)` matcher DSL needs per-library glue that only exists in Laminar's unpublished internal test sources, so don't try to introduce it without re-deriving that glue. Concrete pages aren't tested directly (they call real `*Api` objects hitting `dom.fetch`, unreliable under jsdom) — only the injectable, dependency-free pieces (`EntityCrudPage`, `EntityTable`, `FormField`, DTOs, `Http.query`) are.
