@@ -17,10 +17,12 @@ import scala.util.Try
 /** Thin wrapper around the Fetch API talking to the aviation backend described in openapi.yaml. */
 object Http {
 
-  val baseUrl = "http://localhost:8080"
+  // Relative, not absolute: the backend has no CORS support, so requests go through the Vite
+  // dev-server proxy (see vite.config.js) to stay same-origin from the browser's point of view.
+  val baseUrl = ""
 
   /** Shown by every entity page when the initial load fails and it falls back to sample data. */
-  val backendUnreachableMessage: String = s"Could not connect to the backend ($baseUrl). Showing sample data."
+  val backendUnreachableMessage: String = "Could not connect to the backend (http://localhost:8080). Showing sample data."
 
   given ExecutionContext = scala.concurrent.ExecutionContext.global
 
