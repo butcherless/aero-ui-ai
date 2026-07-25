@@ -7,8 +7,10 @@ import scala.concurrent.Future
 object AirlinesApi {
   private val base = "/api/v1/airlines"
 
-  def list(): Future[List[AirlineDto]] =
-    Http.getJsonList[AirlineDto](base + Http.query("pageSize" -> Some("100")))
+  def list(page: Int = 1): Future[List[AirlineDto]] =
+    Http.getJsonList[AirlineDto](
+      base + Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
+    )
 
   def create(req: CreateAirlineRequest): Future[AirlineDto] =
     Http.postJson[CreateAirlineRequest, AirlineDto](base, req)

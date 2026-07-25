@@ -7,9 +7,9 @@ import org.scalajs.dom
 import scala.concurrent.Promise
 
 /** Exercises the selection/create/edit state machine in isolation, using fake create/edit forms that call their
-  * callbacks synchronously (as a real form's button click would). `fetchAll` is given a Promise that's never completed,
-  * so the initial list load never lands and can't race with these assertions — the async fetch-then-render path is
-  * covered separately in EntityCrudPageLoadSpec.
+  * callbacks synchronously (as a real form's button click would). `fetchPage` is given a Promise that's never
+  * completed, so the initial list load never lands and can't race with these assertions — the async fetch-then-render
+  * path is covered separately in EntityCrudPageLoadSpec.
   */
 class EntityCrudPageSpec extends LaminarMountSpec {
 
@@ -24,7 +24,7 @@ class EntityCrudPageSpec extends LaminarMountSpec {
         rowKey = _.id,
         matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
         sampleData = Nil,
-        fetchAll = () => Promise[List[Item]]().future, // never resolves
+        fetchPage = _ => Promise[List[Item]]().future, // never resolves
         renderCreateForm = (onCreated, onCancel) =>
           div(
             button("do-create", onClick --> (_ => onCreated(Item("new", "New Item")))),

@@ -7,8 +7,14 @@ import scala.concurrent.Future
 object CountriesApi {
   private val base = "/api/v1/countries"
 
-  def list(name: Option[String] = None): Future[List[CountryDto]] =
-    Http.getJsonList[CountryDto](base + Http.query("name" -> name, "pageSize" -> Some("100")))
+  def list(name: Option[String] = None, page: Int = 1): Future[List[CountryDto]] =
+    Http.getJsonList[CountryDto](
+      base + Http.query(
+        "name" -> name,
+        "page" -> Some(page.toString),
+        "pageSize" -> Some(Http.defaultPageSize.toString)
+      )
+    )
 
   def create(req: CreateCountryRequest): Future[CountryDto] =
     Http.postJson[CreateCountryRequest, CountryDto](base, req)

@@ -7,6 +7,7 @@ import app.components.EntityTable
 import app.components.FormActions
 import app.components.FormField
 import app.components.MasterDetailShell
+import app.components.Pagination
 import app.models.FlightInstanceDto
 import com.raquo.laminar.api.L._
 
@@ -38,20 +39,29 @@ object FlightInstancesPage {
   private val errorVar = Var(Option.empty[String])
   private val searchVar = Var("")
   private val selectedVar = Var(Option.empty[FlightInstanceDto])
+  private val pageVar = Var(1)
+  private val hasNextVar = Var(false)
 
-  private def load(): Unit = {
+  private def load(page: Int): Unit = {
     loadingVar.set(true)
     errorVar.set(None)
-    FlightInstancesApi.list().onComplete {
+    FlightInstancesApi.list(page = page).onComplete {
       case Success(list) =>
         loadingVar.set(false)
+        pageVar.set(page)
+        hasNextVar.set(list.size >= Http.defaultPageSize)
         itemsVar.set(list)
       case Failure(_) =>
         loadingVar.set(false)
         errorVar.set(Some(Http.backendUnreachableMessage))
+        pageVar.set(page)
+        hasNextVar.set(false)
         itemsVar.set(sampleData)
     }
   }
+
+  private def goToPrevPage(): Unit = if (pageVar.now() > 1) load(pageVar.now() - 1)
+  private def goToNextPage(): Unit = if (hasNextVar.now()) load(pageVar.now() + 1)
 
   private def filtered: Signal[List[FlightInstanceDto]] =
     itemsVar.signal.combineWith(searchVar.signal).map {
@@ -103,6 +113,8 @@ object FlightInstancesPage {
       error = errorVar.signal
     )
 
+    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
+
     val detail: Signal[HtmlElement] = selectedVar.signal.map {
       case None =>
         div(
@@ -112,6 +124,6 @@ object FlightInstancesPage {
       case Some(item) => detailView(item)
     }
 
-    MasterDetailShell("Flight Instances", toolbar, list, detail).amend(onMountCallback(_ => load()))
+    MasterDetailShell("Flight Instances", toolbar, div(list, pagination), detail).amend(onMountCallback(_ => load(1)))
   }
 }

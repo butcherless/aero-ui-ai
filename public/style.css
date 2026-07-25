@@ -238,6 +238,19 @@ body {
   border-color: #2f6fd6;
 }
 
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.pagination-page {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
 .empty-row {
   text-align: center;
   color: #6b7280;

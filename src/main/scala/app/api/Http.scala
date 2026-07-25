@@ -21,6 +21,9 @@ object Http {
   // dev-server proxy (see vite.config.js) to stay same-origin from the browser's point of view.
   val baseUrl = ""
 
+  /** Default page size for list endpoints (the backend accepts 1-100, defaulting to 20 itself). */
+  val defaultPageSize = 20
+
   /** Shown by every entity page when the initial load fails and it falls back to sample data. */
   val backendUnreachableMessage: String =
     "Could not connect to the backend (http://localhost:8080). Showing sample data."

@@ -8,7 +8,7 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 
 /** Covers the async fetch-then-render path in EntityCrudPage: since `load()` registers its `.onComplete` callback on
-  * the exact Future/Promise handed back by `fetchAll`, driving that same Promise here and chaining assertions off of
+  * the exact Future/Promise handed back by `fetchPage`, driving that same Promise here and chaining assertions off of
   * `promise.future` guarantees our assertions run strictly after EntityCrudPage's own state update — Future callbacks
   * on one Promise fire in registration order, and EntityCrudPage's callback was registered first (synchronously, during
   * `renderRoot`, since Laminar mounts synchronously).
@@ -17,7 +17,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
 
   private case class Item(id: String, name: String)
 
-  private def buildPage(fetchAll: () => Future[List[Item]], sampleData: List[Item] = Nil): dom.html.Element =
+  private def buildPage(fetchPage: Int => Future[List[Item]], sampleData: List[Item] = Nil): dom.html.Element =
     renderRoot(
       EntityCrudPage[Item](
         title = "Items",
@@ -26,7 +26,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
         rowKey = _.id,
         matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
         sampleData = sampleData,
-        fetchAll = fetchAll,
+        fetchPage = fetchPage,
         renderCreateForm = (_, _) => div(),
         renderEditForm = (_, _, _, _) => div(),
         emptySelectionHint = "Nothing selected"
@@ -35,7 +35,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
 
   it("renders the fetched items once the load succeeds") {
     val promise = Promise[List[Item]]()
-    val root = buildPage(fetchAll = () => promise.future)
+    val root = buildPage(fetchPage = _ => promise.future)
 
     promise.success(List(Item("1", "Alpha"), Item("2", "Beta")))
 
@@ -47,7 +47,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
 
   it("falls back to sample data with an error banner when the load fails") {
     val promise = Promise[List[Item]]()
-    val root = buildPage(fetchAll = () => promise.future, sampleData = List(Item("s", "Sample Item")))
+    val root = buildPage(fetchPage = _ => promise.future, sampleData = List(Item("s", "Sample Item")))
 
     promise.failure(new RuntimeException("network down"))
 

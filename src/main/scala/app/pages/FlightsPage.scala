@@ -122,7 +122,7 @@ object FlightsPage {
           f.destinationIata.toLowerCase.contains(needle) ||
           f.airlineIcao.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchAll = () => FlightsApi.list(),
+      fetchPage = page => FlightsApi.list(page = page),
       renderCreateForm = createForm,
       renderEditForm = editForm,
       emptySelectionHint = "Select a flight from the list, or click \"Add\"."

@@ -113,7 +113,7 @@ object AirportsPage {
           a.iata.toLowerCase.contains(needle) ||
           a.icaoCode.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchAll = () => AirportsApi.list(),
+      fetchPage = page => AirportsApi.list(page = page),
       renderCreateForm = createForm,
       renderEditForm = editForm,
       emptySelectionHint = "Select an airport from the list, or click \"Add\"."

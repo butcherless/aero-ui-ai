@@ -31,10 +31,11 @@ object EntityCrudPage {
       rowKey: T => String,
       matchesSearch: (T, String) => Boolean,
       sampleData: List[T],
-      fetchAll: () => Future[List[T]],
+      fetchPage: Int => Future[List[T]],
       renderCreateForm: (T => Unit, () => Unit) => HtmlElement,
       renderEditForm: (T, T => Unit, () => Unit, () => Unit) => HtmlElement,
-      emptySelectionHint: String
+      emptySelectionHint: String,
+      pageSize: Int = Http.defaultPageSize
   ): HtmlElement = {
 
     val itemsVar = Var(List.empty[T])
@@ -42,20 +43,29 @@ object EntityCrudPage {
     val errorVar = Var(Option.empty[String])
     val searchVar = Var("")
     val detailModeVar = Var[DetailMode[T]](DetailMode.NoSelection)
+    val pageVar = Var(1)
+    val hasNextVar = Var(false)
 
-    def load(): Unit = {
+    def load(page: Int): Unit = {
       loadingVar.set(true)
       errorVar.set(None)
-      fetchAll().onComplete {
+      fetchPage(page).onComplete {
         case Success(list) =>
           loadingVar.set(false)
+          pageVar.set(page)
+          hasNextVar.set(list.size >= pageSize)
           itemsVar.set(list)
         case Failure(_) =>
           loadingVar.set(false)
           errorVar.set(Some(Http.backendUnreachableMessage))
+          pageVar.set(page)
+          hasNextVar.set(false)
           itemsVar.set(sampleData)
       }
     }
+
+    def goToPrevPage(): Unit = if (pageVar.now() > 1) load(pageVar.now() - 1)
+    def goToNextPage(): Unit = if (hasNextVar.now()) load(pageVar.now() + 1)
 
     def filtered: Signal[List[T]] =
       itemsVar.signal.combineWith(searchVar.signal).map {
@@ -87,6 +97,8 @@ object EntityCrudPage {
       error = errorVar.signal
     )
 
+    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
+
     val detail: Signal[HtmlElement] = detailModeVar.signal.map {
       case DetailMode.NoSelection =>
         div(cls := "detail-placeholder", emptySelectionHint)
@@ -112,6 +124,6 @@ object EntityCrudPage {
         )
     }
 
-    MasterDetailShell(title, toolbar, list, detail).amend(onMountCallback(_ => load()))
+    MasterDetailShell(title, toolbar, div(list, pagination), detail).amend(onMountCallback(_ => load(1)))
   }
 }

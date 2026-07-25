@@ -77,7 +77,7 @@ object CountriesPage {
       rowKey = _.code,
       matchesSearch = (c, needle) => c.name.toLowerCase.contains(needle) || c.code.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchAll = () => CountriesApi.list(),
+      fetchPage = page => CountriesApi.list(page = page),
       renderCreateForm = createForm,
       renderEditForm = editForm,
       emptySelectionHint = "Select a country from the list, or click \"Add\"."
