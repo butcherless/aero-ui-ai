@@ -46,7 +46,9 @@ object EntityCrudPage {
       pageSize: Int = Http.defaultPageSize,
       serverSearch: Boolean = false,
       debounceMs: Int = 350,
-      minSearchLength: Int = 0
+      minSearchLength: Int = 0,
+      renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
+      onSearchFocus: () => Unit = () => ()
   ): HtmlElement = {
 
     val itemsVar = Var(List.empty[T])
@@ -98,9 +100,11 @@ object EntityCrudPage {
         cls := "search-input",
         placeholder := searchPlaceholder,
         controlled(value <-- searchVar.signal, onInput.mapToValue --> searchVar.writer),
+        onFocus --> (_ => onSearchFocus()),
         onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
           Observer[String](runServerSearch)
       ),
+      renderExtraToolbar(() => load(1, activeQueryVar.now()), () => searchVar.set("")),
       button(cls := "btn btn-add", "+ Add", onClick --> (_ => detailModeVar.set(DetailMode.Creating)))
     )
 
@@ -165,7 +169,9 @@ object EntityCrudPage {
       pageSize: Int = Http.defaultPageSize,
       serverSearch: Boolean = false,
       debounceMs: Int = 350,
-      minSearchLength: Int = 0
+      minSearchLength: Int = 0,
+      renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
+      onSearchFocus: () => Unit = () => ()
   ): HtmlElement = {
 
     val itemsVar = Var(List.empty[T])
@@ -217,9 +223,11 @@ object EntityCrudPage {
         cls := "search-input",
         placeholder := searchPlaceholder,
         controlled(value <-- searchVar.signal, onInput.mapToValue --> searchVar.writer),
+        onFocus --> (_ => onSearchFocus()),
         onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
           Observer[String](runServerSearch)
-      )
+      ),
+      renderExtraToolbar(() => load(1, activeQueryVar.now()), () => searchVar.set(""))
     )
 
     val list = EntityTable[T](

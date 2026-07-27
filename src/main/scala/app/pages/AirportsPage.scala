@@ -107,15 +107,37 @@ object AirportsPage {
   // fetchPage slices that full match list itself to keep Prev/Next behaving the same way it does for a plain list.
   private val MinNameSearchLength = 3
 
-  private def fetchAirports(page: Int, query: String): Future[List[AirportDto]] =
-    if (query.trim.length >= MinNameSearchLength)
+  private def fetchAirports(countryFilterVar: Var[String])(page: Int, query: String): Future[List[AirportDto]] = {
+    val country = countryFilterVar.now().trim.toUpperCase
+    if (country.nonEmpty) AirportsApi.byCountry(country, page)
+    else if (query.trim.length >= MinNameSearchLength)
       AirportsApi.search(query.trim).map { matches =>
         val pageSize = Http.defaultPageSize
         matches.slice((page - 1) * pageSize, page * pageSize)
       }
     else AirportsApi.list(page = page)
+  }
 
-  def apply(): HtmlElement =
+  // Country-by-code browse, mirroring RoutesPage's browse-by-airline-ICAO toolbar. Takes priority over the name
+  // search when set, since the backend has no endpoint combining both — so focusing either box clears the other to
+  // avoid the confusing state of both holding text at once.
+  private def countryFilterControl(
+      filterVar: Var[String],
+      reload: () => Unit,
+      clearSearch: () => Unit
+  ): List[HtmlElement] =
+    List(
+      input(
+        cls := "search-input",
+        placeholder := "Country code (e.g. ES)",
+        controlled(value <-- filterVar.signal, onInput.mapToValue --> filterVar.writer),
+        onFocus --> (_ => clearSearch())
+      ),
+      button(cls := "btn btn-secondary", "Filter", onClick --> (_ => reload()))
+    )
+
+  def apply(): HtmlElement = {
+    val countryFilterVar = Var("")
     EntityCrudPage[AirportDto](
       title = "Airports",
       searchPlaceholder = "Search airport by name (3+ characters)…",
@@ -127,15 +149,19 @@ object AirportsPage {
           a.iata.toLowerCase.contains(needle) ||
           a.icaoCode.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchPage = fetchAirports,
+      fetchPage = fetchAirports(countryFilterVar),
       renderCreateForm = createForm,
       renderEditForm = editForm,
       emptySelectionHint = "Select an airport from the list, or click \"Add\".",
       serverSearch = true,
-      minSearchLength = MinNameSearchLength
+      minSearchLength = MinNameSearchLength,
+      renderExtraToolbar = (reload, clearSearch) => countryFilterControl(countryFilterVar, reload, clearSearch),
+      onSearchFocus = () => countryFilterVar.set("")
     )
+  }
 
-  def readOnly(): HtmlElement =
+  def readOnly(): HtmlElement = {
+    val countryFilterVar = Var("")
     EntityCrudPage.readOnly[AirportDto](
       title = "Airports",
       searchPlaceholder = "Search airport by name (3+ characters)…",
@@ -147,9 +173,12 @@ object AirportsPage {
           a.iata.toLowerCase.contains(needle) ||
           a.icaoCode.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchPage = fetchAirports,
+      fetchPage = fetchAirports(countryFilterVar),
       emptySelectionHint = "Select an airport from the list to see its details. Viewer mode is read-only.",
       serverSearch = true,
-      minSearchLength = MinNameSearchLength
+      minSearchLength = MinNameSearchLength,
+      renderExtraToolbar = (reload, clearSearch) => countryFilterControl(countryFilterVar, reload, clearSearch),
+      onSearchFocus = () => countryFilterVar.set("")
     )
+  }
 }

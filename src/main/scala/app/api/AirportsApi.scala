@@ -15,6 +15,12 @@ object AirportsApi {
   def search(q: String): Future[List[AirportDto]] =
     Http.getJsonList[AirportDto](s"$base/search" + Http.query("q" -> Some(q)))
 
+  def byCountry(code: String, page: Int = 1): Future[List[AirportDto]] =
+    Http.getJsonList[AirportDto](
+      s"/api/v1/countries/$code/airports" +
+        Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
+    )
+
   def get(iata: String): Future[AirportDto] =
     Http.getJson[AirportDto](s"$base/$iata")
 
