@@ -1,5 +1,7 @@
 # aero-ui-ai
 
+[![CI](https://github.com/butcherless/aero-ui-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/butcherless/aero-ui-ai/actions/workflows/ci.yml)
+
 Aviation admin panel (reactive SPA) built with **Scala 3 + Scala.js + Laminar**, driven by the `Aviation Hexagonal API` OpenAPI spec.
 
 ## Structure
