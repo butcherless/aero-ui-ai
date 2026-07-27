@@ -132,6 +132,58 @@ body {
   margin: 0 4px;
 }
 
+.quick-lookup {
+  position: relative;
+}
+
+.quick-lookup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-lookup-select {
+  background: #1a1d24;
+  border: 1px solid #2a2e38;
+  color: #e5e7eb;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.quick-lookup-input {
+  width: 120px;
+  background: #1a1d24;
+  border: 1px solid #2a2e38;
+  color: #e5e7eb;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.quick-lookup-input::placeholder {
+  color: #6b7280;
+}
+
+.quick-lookup-result {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: #1a1d24;
+  border: 1px solid #2a2e38;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #e5e7eb;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.quick-lookup-error {
+  color: #f87171;
+  border-color: #4a2b2b;
+}
+
 .page h1 {
   font-size: 26px;
   margin: 0 0 20px;

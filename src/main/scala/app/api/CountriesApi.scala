@@ -16,6 +16,9 @@ object CountriesApi {
       )
     )
 
+  def get(code: String): Future[CountryDto] =
+    Http.getJson[CountryDto](s"$base/$code")
+
   def create(req: CreateCountryRequest): Future[CountryDto] =
     Http.postJson[CreateCountryRequest, CountryDto](base, req)
 

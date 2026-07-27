@@ -15,6 +15,9 @@ object AirportsApi {
   def search(q: String): Future[List[AirportDto]] =
     Http.getJsonList[AirportDto](s"$base/search" + Http.query("q" -> Some(q)))
 
+  def get(iata: String): Future[AirportDto] =
+    Http.getJson[AirportDto](s"$base/$iata")
+
   def create(req: CreateAirportRequest): Future[AirportDto] =
     Http.postJson[CreateAirportRequest, AirportDto](base, req)
 
