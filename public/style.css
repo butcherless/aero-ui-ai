@@ -101,6 +101,7 @@ body {
 .topbar-logo {
   height: 40px;
   width: auto;
+  cursor: pointer;
 }
 
 .topbar-actions {

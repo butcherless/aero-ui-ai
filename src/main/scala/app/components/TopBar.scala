@@ -4,6 +4,8 @@ import app.api.AirlinesApi
 import app.api.AirportsApi
 import app.api.CountriesApi
 import app.api.Http.given
+import app.router.AppRouter
+import app.router.Page
 import com.raquo.laminar.api.L._
 import org.scalajs.dom
 
@@ -90,7 +92,13 @@ object TopBar {
   def apply(): HtmlElement =
     div(
       cls := "topbar",
-      img(cls := "topbar-logo", src := "/martinair.png", alt := "MartinAir"),
+      img(
+        cls := "topbar-logo",
+        src := "/martinair.png",
+        alt := "MartinAir — go to home",
+        title := "Home",
+        onClick --> (_ => AppRouter.navigateTo(Page.Countries))
+      ),
       quickLookup(),
       div(
         cls := "topbar-actions",
