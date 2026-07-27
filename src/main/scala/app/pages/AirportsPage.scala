@@ -134,4 +134,22 @@ object AirportsPage {
       serverSearch = true,
       minSearchLength = MinNameSearchLength
     )
+
+  def readOnly(): HtmlElement =
+    EntityCrudPage.readOnly[AirportDto](
+      title = "Airports",
+      searchPlaceholder = "Search airport by name (3+ characters)…",
+      columns = List("IATA" -> (_.iata), "ICAO" -> (_.icaoCode), "Name" -> (_.name), "City" -> (_.city)),
+      rowKey = _.iata,
+      matchesSearch = (a, needle) =>
+        a.name.toLowerCase.contains(needle) ||
+          a.city.toLowerCase.contains(needle) ||
+          a.iata.toLowerCase.contains(needle) ||
+          a.icaoCode.toLowerCase.contains(needle),
+      sampleData = sampleData,
+      fetchPage = fetchAirports,
+      emptySelectionHint = "Select an airport from the list to see its details. Viewer mode is read-only.",
+      serverSearch = true,
+      minSearchLength = MinNameSearchLength
+    )
 }

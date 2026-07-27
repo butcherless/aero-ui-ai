@@ -18,6 +18,13 @@ object App {
       case Page.Flights => FlightsPage()
       case Page.FlightInstances => FlightInstancesPage()
       case Page.Routes => RoutesPage()
+      case Page.Profile => ProfilePage()
+      case Page.ViewCountries => CountriesPage.readOnly()
+      case Page.ViewAirports => AirportsPage.readOnly()
+      case Page.ViewAirlines => AirlinesPage.readOnly()
+      case Page.ViewAircraft => AircraftPage.readOnly()
+      case Page.ViewFlights => FlightsPage.readOnly()
+      case Page.ViewRoutes => RoutesPage.readOnly()
     }
 
     val containerNode = dom.document.getElementById("app-container")

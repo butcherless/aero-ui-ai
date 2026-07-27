@@ -146,4 +146,106 @@ object EntityCrudPage {
 
     MasterDetailShell(title, toolbar, div(list, pagination), detail).amend(onMountCallback(_ => load(1, "")))
   }
+
+  /** Read-only counterpart to `apply`: same paginated loading/search/sample-data-fallback behavior, but no "+ Add"
+    * button and no write actions in the detail panel — clicking a row shows every column as a static field (via
+    * `FormField.readOnly`) with just a Close button, exactly like the hand-rolled read-only detail view in
+    * `FlightInstancesPage`. Used for the `/view/...` preview pages until the backend's real roles/permissions module
+    * decides who gets write access.
+    */
+  def readOnly[T](
+      title: String,
+      searchPlaceholder: String,
+      columns: List[(String, T => String)],
+      rowKey: T => String,
+      matchesSearch: (T, String) => Boolean,
+      sampleData: List[T],
+      fetchPage: (Int, String) => Future[List[T]],
+      emptySelectionHint: String,
+      pageSize: Int = Http.defaultPageSize,
+      serverSearch: Boolean = false,
+      debounceMs: Int = 350,
+      minSearchLength: Int = 0
+  ): HtmlElement = {
+
+    val itemsVar = Var(List.empty[T])
+    val loadingVar = Var(true)
+    val errorVar = Var(Option.empty[String])
+    val searchVar = Var("")
+    val activeQueryVar = Var("")
+    val selectedVar = Var(Option.empty[T])
+    val pageVar = Var(1)
+    val hasNextVar = Var(false)
+
+    def load(page: Int, query: String): Unit = {
+      loadingVar.set(true)
+      errorVar.set(None)
+      fetchPage(page, query).onComplete {
+        case Success(list) =>
+          loadingVar.set(false)
+          pageVar.set(page)
+          activeQueryVar.set(query)
+          hasNextVar.set(list.size >= pageSize)
+          itemsVar.set(list)
+        case Failure(_) =>
+          loadingVar.set(false)
+          errorVar.set(Some(Http.backendUnreachableMessage))
+          pageVar.set(page)
+          activeQueryVar.set(query)
+          hasNextVar.set(false)
+          itemsVar.set(sampleData)
+      }
+    }
+
+    def goToPrevPage(): Unit = if (pageVar.now() > 1) load(pageVar.now() - 1, activeQueryVar.now())
+    def goToNextPage(): Unit = if (hasNextVar.now()) load(pageVar.now() + 1, activeQueryVar.now())
+    def runServerSearch(query: String): Unit = {
+      val trimmed = query.trim
+      if (serverSearch && (trimmed.isEmpty || trimmed.length >= minSearchLength)) load(1, query)
+    }
+
+    def filtered: Signal[List[T]] =
+      itemsVar.signal.combineWith(searchVar.signal).map {
+        case (items, q) =>
+          val needle = q.trim.toLowerCase
+          if (needle.isEmpty) items else items.filter(matchesSearch(_, needle))
+      }
+
+    val toolbar = div(
+      cls := "entity-toolbar",
+      input(
+        cls := "search-input",
+        placeholder := searchPlaceholder,
+        controlled(value <-- searchVar.signal, onInput.mapToValue --> searchVar.writer),
+        onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+          Observer[String](runServerSearch)
+      )
+    )
+
+    val list = EntityTable[T](
+      columns = columns,
+      rows = filtered,
+      rowKey = rowKey,
+      selectedKey = selectedVar.signal.map(_.map(rowKey)),
+      onRowClick = item => selectedVar.set(Some(item)),
+      loading = loadingVar.signal,
+      error = errorVar.signal
+    )
+
+    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
+
+    val detail: Signal[HtmlElement] = selectedVar.signal.map {
+      case None =>
+        div(cls := "detail-placeholder", emptySelectionHint)
+      case Some(item) =>
+        div(
+          cls := "detail-form",
+          div(cls := "detail-heading", title),
+          columns.map { case (label, extract) => FormField.readOnly(label, extract(item)) },
+          FormActions.close(() => selectedVar.set(None))
+        )
+    }
+
+    MasterDetailShell(title, toolbar, div(list, pagination), detail).amend(onMountCallback(_ => load(1, "")))
+  }
 }

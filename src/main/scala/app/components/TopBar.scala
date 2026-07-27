@@ -16,8 +16,9 @@ import scala.util.Success
   */
 object TopBar {
 
-  // Self-contained inline SVG placeholder (generic user silhouette) — no network/asset dependency.
-  private val avatarPlaceholder =
+  // Self-contained inline SVG placeholder (generic user silhouette) — no network/asset dependency. Also reused by
+  // ProfilePage so the two placeholder-identity spots in the app share one visual.
+  val avatarPlaceholder =
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'%3E" +
       "%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8'/%3E%3C/svg%3E"
 

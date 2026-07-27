@@ -380,6 +380,28 @@ body {
   border: 1px solid #4a2b2b;
 }
 
+.banner-info {
+  background: #16202e;
+  color: #7fb3ff;
+  border: 1px solid #1d3a5f;
+}
+
+/* -- Profile page -- */
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.profile-preview-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
 /* -- Detail panel -- */
 
 .detail-heading {

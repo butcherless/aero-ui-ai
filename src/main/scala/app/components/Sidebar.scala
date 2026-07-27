@@ -17,7 +17,9 @@ object Sidebar {
       navLink("🛩️", "Aircraft", Page.Aircraft),
       navLink("🛫", "Flights", Page.Flights),
       navLink("🕒", "Flight Instances", Page.FlightInstances),
-      navLink("🔀", "Routes", Page.Routes)
+      navLink("🔀", "Routes", Page.Routes),
+      div(cls := "sidebar-section-label", "User"),
+      navLink("👤", "Profile", Page.Profile)
     )
 
   private def navLink(icon: String, label: String, page: Page): HtmlElement =

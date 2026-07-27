@@ -129,4 +129,26 @@ object AirlinesPage {
       serverSearch = true,
       minSearchLength = MinNameSearchLength
     )
+
+  def readOnly(): HtmlElement =
+    EntityCrudPage.readOnly[AirlineDto](
+      title = "Airlines",
+      searchPlaceholder = "Search airline by name (3+ characters)…",
+      columns = List(
+        "ICAO" -> (_.icao),
+        "Name" -> (_.name),
+        "Alias" -> (a => a.alias.getOrElse("—")),
+        "Callsign" -> (a => a.callsign.getOrElse("—"))
+      ),
+      rowKey = _.icao,
+      matchesSearch = (a, needle) =>
+        a.name.toLowerCase.contains(needle) ||
+          a.icao.toLowerCase.contains(needle) ||
+          a.alias.exists(_.toLowerCase.contains(needle)),
+      sampleData = sampleData,
+      fetchPage = fetchAirlines,
+      emptySelectionHint = "Select an airline from the list to see its details. Viewer mode is read-only.",
+      serverSearch = true,
+      minSearchLength = MinNameSearchLength
+    )
 }

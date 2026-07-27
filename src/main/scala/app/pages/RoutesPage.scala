@@ -187,4 +187,96 @@ object RoutesPage {
 
     MasterDetailShell("Routes", toolbar, list, detail)
   }
+
+  private val roItemsVar = Var(List.empty[RouteDto])
+  private val roLoadingVar = Var(false)
+  private val roErrorVar = Var(Option.empty[String])
+  private val roQueryIcaoVar = Var("")
+  private val roSelectedVar = Var(Option.empty[RouteDto])
+
+  private def roSearch(): Unit = {
+    val icao = roQueryIcaoVar.now().trim.toUpperCase
+    if (icao.length != 3) {
+      roErrorVar.set(Some("Enter a 3-letter airline ICAO code (e.g. AEA)."))
+    } else {
+      roLoadingVar.set(true)
+      roErrorVar.set(None)
+      RoutesApi.byAirline(icao).onComplete {
+        case Success(list) =>
+          roLoadingVar.set(false)
+          roItemsVar.set(list)
+        case Failure(_) =>
+          roLoadingVar.set(false)
+          roErrorVar.set(Some(Http.backendUnreachableMessage))
+          roItemsVar.set(sampleData)
+      }
+    }
+  }
+
+  private def roAirlinesSubsection(route: RouteDto): HtmlElement = {
+    val airlinesVar = Var(List.empty[AirlineDto])
+
+    RoutesApi.airlinesOperating(route.originIata, route.destinationIata).onComplete {
+      case Success(list) => airlinesVar.set(list)
+      case Failure(_) => airlinesVar.set(Nil)
+    }
+
+    div(
+      cls := "detail-subsection",
+      div(cls := "detail-subsection-title", "Airlines operating this route"),
+      div(
+        cls := "chip-list",
+        children <-- airlinesVar.signal.map(_.map(a => div(cls := "chip", a.icao)))
+      )
+    )
+  }
+
+  private def roDetailView(route: RouteDto): HtmlElement =
+    div(
+      cls := "detail-form",
+      div(cls := "detail-heading", "Selected route"),
+      FormField.readOnly("Origin", route.originIata),
+      FormField.readOnly("Destination", route.destinationIata),
+      FormField.readOnly("Distance (km)", route.distanceKm.toString),
+      FormActions.close(() => roSelectedVar.set(None)),
+      roAirlinesSubsection(route)
+    )
+
+  /** Read-only counterpart to `apply`: same browse-by-airline search, no "+ Add" button, and the airlines subsection is
+    * shown without the associate/disassociate controls. Uses its own module-level state, separate from `apply`'s, so
+    * the two pages don't interfere with each other's in-progress search/selection.
+    */
+  def readOnly(): HtmlElement = {
+    val toolbar = div(
+      cls := "entity-toolbar",
+      input(
+        cls := "search-input",
+        placeholder := "View an airline's routes (ICAO, e.g. AEA)…",
+        controlled(value <-- roQueryIcaoVar.signal, onInput.mapToValue --> roQueryIcaoVar.writer)
+      ),
+      button(cls := "btn btn-secondary", "Search", onClick --> (_ => roSearch()))
+    )
+
+    val list = EntityTable[RouteDto](
+      columns = List(
+        "Origin" -> (_.originIata),
+        "Destination" -> (_.destinationIata),
+        "Distance (km)" -> (_.distanceKm.toString)
+      ),
+      rows = roItemsVar.signal,
+      rowKey = rowKey,
+      selectedKey = roSelectedVar.signal.map(_.map(rowKey)),
+      onRowClick = item => roSelectedVar.set(Some(item)),
+      loading = roLoadingVar.signal,
+      error = roErrorVar.signal
+    )
+
+    val detail: Signal[HtmlElement] = roSelectedVar.signal.map {
+      case None =>
+        div(cls := "detail-placeholder", "Search for an airline's routes, then select a row. Viewer mode is read-only.")
+      case Some(item) => roDetailView(item)
+    }
+
+    MasterDetailShell("Routes", toolbar, list, detail)
+  }
 }

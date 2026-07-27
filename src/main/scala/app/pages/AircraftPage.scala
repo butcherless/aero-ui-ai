@@ -104,4 +104,25 @@ object AircraftPage {
       renderEditForm = editForm,
       emptySelectionHint = "Select an aircraft from the list, or click \"Add\"."
     )
+
+  def readOnly(): HtmlElement =
+    EntityCrudPage.readOnly[AircraftDto](
+      title = "Aircraft",
+      searchPlaceholder = "Search aircraft (registration, type, airline)…",
+      columns = List(
+        "Registration" -> (_.registration),
+        "Type" -> (_.typeCode),
+        "Description" -> (_.description),
+        "Airline" -> (_.airlineIcao)
+      ),
+      rowKey = _.registration,
+      matchesSearch = (a, needle) =>
+        a.registration.toLowerCase.contains(needle) ||
+          a.typeCode.toLowerCase.contains(needle) ||
+          a.description.toLowerCase.contains(needle) ||
+          a.airlineIcao.toLowerCase.contains(needle),
+      sampleData = sampleData,
+      fetchPage = (page, _) => AircraftApi.list(page = page),
+      emptySelectionHint = "Select an aircraft from the list to see its details. Viewer mode is read-only."
+    )
 }
