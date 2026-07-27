@@ -33,26 +33,51 @@ object Http {
   /** Raised for any non-2xx response, carrying the backend's own error message when it sends one. */
   final case class ApiError(status: Int, message: String) extends RuntimeException(message)
 
+  // Wrapped in Future(...) so a synchronous throw from dom.fetch itself (e.g. no `fetch` global at
+  // all, as under plain jsdom) becomes a failed Future like every other error case, instead of an
+  // uncaught exception escaping straight out of whatever click handler triggered the call.
+  //
+  // Session.token is read synchronously, *before* entering the Future block — callers like
+  // TopBar's disconnect (which fires the logout call then immediately clears the session on the
+  // very next line) need the token captured at call time, not whenever the deferred fetch actually
+  // runs, or the request would go out with no Authorization header at all.
   private def rawRequest(method: HttpMethod, path: String, body: Option[String]): Future[(Int, String)] = {
-    val init = new RequestInit {}
-    init.method = method
-    init.headers = js.Dictionary("Content-Type" -> "application/json")
-    body.foreach(b => init.body = b)
+    val headers = js.Dictionary("Content-Type" -> "application/json")
+    app.auth.Session.token.foreach(t => headers("Authorization") = s"Bearer $t")
 
-    dom.fetch(baseUrl + path, init).toFuture.flatMap { resp =>
-      resp.text().toFuture.map(text => (resp.status, text))
-    }
+    Future {
+      val init = new RequestInit {}
+      init.method = method
+      init.headers = headers
+      body.foreach(b => init.body = b)
+      dom.fetch(baseUrl + path, init)
+    }.flatMap(_.toFuture).flatMap(resp => resp.text().toFuture.map(text => (resp.status, text)))
   }
 
+  // Falls back to the raw body when it isn't the {message, errors} JSON shape — every endpoint's
+  // Tapir-level validation errors (bad path/query param, missing header) come back as plain text,
+  // not JSON, and that text is worth keeping rather than discarding into a generic "Error HTTP $status".
   private def extractMessage(text: String): Option[String] =
     if (text.trim.isEmpty) None
-    else Try(read[HttpErrorResponse](text).message).toOption
+    else Try(read[HttpErrorResponse](text).message).toOption.orElse(Some(text.trim))
+
+  private val loginPath = "/api/v1/auth/login"
 
   private def call(method: HttpMethod, path: String, body: Option[String]): Future[String] =
     rawRequest(method, path, body).map {
       case (status, text) =>
         if (status >= 200 && status < 300) text
-        else throw ApiError(status, extractMessage(text).getOrElse(s"Error HTTP $status"))
+        else {
+          // A 401 from anywhere except login itself means the session is no longer valid (missing,
+          // expired, or invalid token) — clear it and bounce to login from this one central place,
+          // rather than every call site handling it. Login's own 401 is a "wrong password" event,
+          // not a "session died" event, and must surface as an inline form error instead.
+          if (status == 401 && path != loginPath) {
+            app.auth.Session.clear()
+            app.router.AppRouter.navigateTo(app.router.Page.Login)
+          }
+          throw ApiError(status, extractMessage(text).getOrElse(s"Error HTTP $status"))
+        }
     }
 
   def get(path: String): Future[String] = call(HttpMethod.GET, path, None)

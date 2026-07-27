@@ -119,6 +119,11 @@ case class FlightInstanceDto(
 case class RouteDto(originIata: String, destinationIata: String, distanceKm: Int) derives ReadWriter
 case class CreateRouteRequest(originIata: String, destinationIata: String, distanceKm: Int) derives ReadWriter
 
+// -- Auth --
+
+case class LoginRequest(username: String, password: String) derives ReadWriter
+case class LoginResponse(token: String, tokenType: String, expiresIn: Int) derives ReadWriter
+
 // -- Errors --
 
 case class HttpErrorResponse(message: String, errors: Option[List[String]] = None) derives ReadWriter

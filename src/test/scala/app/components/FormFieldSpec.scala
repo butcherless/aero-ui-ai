@@ -44,6 +44,21 @@ class FormFieldSpec extends LaminarMountSpec {
     }
   }
 
+  describe("FormField.password") {
+    it("renders an <input type=password> and writes back into the bound Var") {
+      val passwordVar = Var("")
+      val root = renderRoot(FormField.password("Password", passwordVar))
+      val input = root.querySelector("input").asInstanceOf[dom.html.Input]
+
+      input.getAttribute("type") shouldBe "password"
+
+      input.value = "hunter2"
+      input.dispatchEvent(new dom.Event("input"))
+
+      passwordVar.now() shouldBe "hunter2"
+    }
+  }
+
   describe("FormField.readOnly") {
     it("renders static text, not an input") {
       val root = renderRoot(FormField.readOnly("Code", "ES"))

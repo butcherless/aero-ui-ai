@@ -1,5 +1,6 @@
 package app
 
+import app.auth.Session
 import app.components.Layout
 import app.pages._
 import app.router.AppRouter
@@ -25,9 +26,20 @@ object App {
       case Page.ViewAircraft => AircraftPage.readOnly()
       case Page.ViewFlights => FlightsPage.readOnly()
       case Page.ViewRoutes => RoutesPage.readOnly()
+      // Only reachable if an already-logged-in user manually visits /login; bounce to the home page
+      // instead of showing a blank/broken state (mirrors Page.fromPath's own unknown-path fallback).
+      case Page.Login => CountriesPage()
+    }
+
+    // Hard-gated on auth: only reconstructs Layout/LoginPage on an actual login/logout transition
+    // (isAuthenticated flipping), not on every page nav — Layout's own `child <-- content` keeps
+    // handling page-to-page swaps exactly as before.
+    val appSignal: Signal[HtmlElement] = Session.isAuthenticated.map {
+      case true => Layout(contentSignal)
+      case false => LoginPage()
     }
 
     val containerNode = dom.document.getElementById("app-container")
-    render(containerNode, Layout(contentSignal))
+    render(containerNode, div(child <-- appSignal))
   }
 }

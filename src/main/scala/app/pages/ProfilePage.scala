@@ -1,13 +1,14 @@
 package app.pages
 
+import app.auth.Session
 import app.components.TopBar
 import app.router.AppRouter
 import app.router.Page
 import com.raquo.laminar.api.L._
 
-/** Placeholder profile page: no real session/auth exists yet (see `TopBar`'s "Admin User"), and the backend's
-  * roles/permissions module hasn't been implemented. This page's job for now is just to link out to the read-only
-  * "Viewer" preview of every entity, so the read-only UI can be exercised ahead of real role-based access.
+/** Profile page: shows the logged-in user's identity, and links out to the read-only "Viewer" preview of every entity,
+  * since the backend's roles/permissions module hasn't been implemented — anyone with a valid token sees everything, so
+  * this lets the read-only UI be exercised ahead of real role-based access.
   */
 object ProfilePage {
 
@@ -30,7 +31,7 @@ object ProfilePage {
       div(
         cls := "profile-identity",
         img(cls := "topbar-avatar", src := TopBar.avatarPlaceholder, alt := "User avatar"),
-        span(cls := "topbar-username", "Admin User")
+        span(cls := "topbar-username", text <-- Session.signal.map(_.map(_.username).getOrElse("Admin User")))
       ),
       div(
         cls := "banner banner-info",

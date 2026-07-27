@@ -2,8 +2,10 @@ package app.components
 
 import app.api.AirlinesApi
 import app.api.AirportsApi
+import app.api.AuthApi
 import app.api.CountriesApi
 import app.api.Http.given
+import app.auth.Session
 import app.router.AppRouter
 import app.router.Page
 import com.raquo.laminar.api.L._
@@ -12,9 +14,8 @@ import org.scalajs.dom
 import scala.util.Failure
 import scala.util.Success
 
-/** Top bar above the content area: brand logo and an exact-code quick-lookup widget on the left, placeholder
-  * user/session UI on the right (no auth system exists yet, so the avatar and "Disconnect" button aren't wired to
-  * anything real).
+/** Top bar above the content area: brand logo and an exact-code quick-lookup widget on the left, the logged-in user's
+  * name and a working Disconnect button on the right.
   */
 object TopBar {
 
@@ -89,6 +90,14 @@ object TopBar {
     )
   }
 
+  // Best-effort server-side revocation — never blocks clearing the local session on it (the network
+  // call can fail or hang; discarding the token client-side is what actually ends the session from
+  // the UI's point of view, per the auth API contract).
+  private def disconnect(): Unit = {
+    AuthApi.logout().recover { case _ => () }
+    Session.clear()
+  }
+
   def apply(): HtmlElement =
     div(
       cls := "topbar",
@@ -103,9 +112,13 @@ object TopBar {
       div(
         cls := "topbar-actions",
         img(cls := "topbar-avatar", src := avatarPlaceholder, alt := "User avatar"),
-        span(cls := "topbar-username", "Admin User"),
+        span(cls := "topbar-username", text <-- Session.signal.map(_.map(_.username).getOrElse(""))),
         span(cls := "topbar-divider"),
-        button(cls := "btn btn-secondary topbar-disconnect", disabled := true, "Disconnect")
+        button(
+          cls := "btn btn-secondary topbar-disconnect",
+          "Disconnect",
+          onClick --> (_ => disconnect())
+        )
       )
     )
 }

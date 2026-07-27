@@ -20,6 +20,7 @@ object Page {
   case object ViewAircraft extends Page
   case object ViewFlights extends Page
   case object ViewRoutes extends Page
+  case object Login extends Page
 
   def fromPath(path: String): Page = path match {
     case "/airports" => Airports
@@ -35,6 +36,7 @@ object Page {
     case "/view/aircraft" => ViewAircraft
     case "/view/flights" => ViewFlights
     case "/view/routes" => ViewRoutes
+    case "/login" => Login
     case _ => Countries
   }
 
@@ -53,6 +55,7 @@ object Page {
     case ViewAircraft => "/view/aircraft"
     case ViewFlights => "/view/flights"
     case ViewRoutes => "/view/routes"
+    case Login => "/login"
   }
 }
 

@@ -34,6 +34,21 @@ object FormField {
       )
     )
 
+  def password(fieldLabel: String, valueVar: Var[String], placeholderText: String = ""): HtmlElement =
+    div(
+      cls := "form-field",
+      div(cls := "form-field-label", fieldLabel),
+      input(
+        cls := "form-input",
+        typ := "password",
+        placeholder := placeholderText,
+        controlled(
+          value <-- valueVar.signal,
+          onInput.mapToValue --> valueVar.writer
+        )
+      )
+    )
+
   def readOnly(fieldLabel: String, valueText: String): HtmlElement =
     div(
       cls := "form-field",
