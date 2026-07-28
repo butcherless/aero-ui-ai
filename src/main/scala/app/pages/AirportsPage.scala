@@ -4,6 +4,7 @@ import app.api.AirportsApi
 import app.api.Http
 import app.api.Http.given
 import app.components.AsyncAction
+import app.components.DebouncedFilterInput
 import app.components.EntityCrudPage
 import app.components.FormActions
 import app.components.FormField
@@ -11,7 +12,6 @@ import app.models.AirportDto
 import app.models.CreateAirportRequest
 import app.models.UpdateAirportRequest
 import com.raquo.laminar.api.L._
-import org.scalajs.dom
 
 import scala.concurrent.Future
 import scala.util.Failure
@@ -130,19 +130,7 @@ object AirportsPage {
       reload: () => Unit,
       clearSearch: () => Unit
   ): List[HtmlElement] =
-    List(
-      input(
-        cls := "search-input",
-        placeholder := "Country code (e.g. ES)",
-        controlled(value <-- filterVar.signal, onInput.mapToValue --> filterVar.writer),
-        onFocus --> (_ => clearSearch()),
-        onInput(_.debounce(350).map(_.target.asInstanceOf[dom.html.Input].value)) -->
-          Observer[String] { v =>
-            val trimmed = v.trim
-            if (trimmed.isEmpty || trimmed.length >= MinCountrySearchLength) reload()
-          }
-      )
-    )
+    List(DebouncedFilterInput(filterVar, "Country code (e.g. ES)", MinCountrySearchLength, reload, clearSearch))
 
   def apply(): HtmlElement = {
     val countryFilterVar = Var("")

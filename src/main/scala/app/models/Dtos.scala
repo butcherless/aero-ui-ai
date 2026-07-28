@@ -33,7 +33,8 @@ case class AirlineDto(
     icao: String,
     name: String,
     alias: Option[String] = None,
-    callsign: Option[String] = None
+    callsign: Option[String] = None,
+    iata: Option[String] = None
 ) derives ReadWriter
 
 case class CreateAirlineRequest(
@@ -41,14 +42,16 @@ case class CreateAirlineRequest(
     name: String,
     countryCode: String,
     alias: Option[String] = None,
-    callsign: Option[String] = None
+    callsign: Option[String] = None,
+    iata: Option[String] = None
 ) derives ReadWriter
 
 case class UpdateAirlineRequest(
     name: String,
     countryCode: String,
     alias: Option[String] = None,
-    callsign: Option[String] = None
+    callsign: Option[String] = None,
+    iata: Option[String] = None
 ) derives ReadWriter
 
 // -- Aircraft --

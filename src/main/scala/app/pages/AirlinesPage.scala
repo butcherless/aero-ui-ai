@@ -4,6 +4,7 @@ import app.api.AirlinesApi
 import app.api.Http
 import app.api.Http.given
 import app.components.AsyncAction
+import app.components.DebouncedFilterInput
 import app.components.EntityCrudPage
 import app.components.FormActions
 import app.components.FormField
@@ -11,16 +12,15 @@ import app.models.AirlineDto
 import app.models.CreateAirlineRequest
 import app.models.UpdateAirlineRequest
 import com.raquo.laminar.api.L._
-import org.scalajs.dom
 
 import scala.concurrent.Future
 
 object AirlinesPage {
 
   private val sampleData = List(
-    AirlineDto("IBE", "Iberia", alias = Some("Iberia Express"), callsign = Some("IBERIA")),
-    AirlineDto("AEA", "Air Europa", callsign = Some("EUROPA")),
-    AirlineDto("VLG", "Vueling", callsign = Some("VUELING"))
+    AirlineDto("IBE", "Iberia", alias = Some("Iberia Express"), callsign = Some("IBERIA"), iata = Some("IB")),
+    AirlineDto("AEA", "Air Europa", callsign = Some("EUROPA"), iata = Some("UX")),
+    AirlineDto("VLG", "Vueling", callsign = Some("VUELING"), iata = Some("V7"))
   )
 
   private def editForm(
@@ -32,6 +32,7 @@ object AirlinesPage {
     val nameVar = Var(item.name)
     val aliasVar = Var(item.alias.getOrElse(""))
     val callsignVar = Var(item.callsign.getOrElse(""))
+    val iataVar = Var(item.iata.getOrElse(""))
     val countryCodeVar = Var("")
     val savingVar = Var(false)
     val errVar = Var(Option.empty[String])
@@ -41,7 +42,8 @@ object AirlinesPage {
         nameVar.now().trim,
         countryCodeVar.now().trim.toUpperCase,
         Option(aliasVar.now().trim).filter(_.nonEmpty),
-        Option(callsignVar.now().trim).filter(_.nonEmpty)
+        Option(callsignVar.now().trim).filter(_.nonEmpty),
+        Option(iataVar.now().trim.toUpperCase).filter(_.nonEmpty)
       )
       AsyncAction.run(savingVar, errVar)(AirlinesApi.update(item.icao, req))(onSaved)
     }
@@ -56,6 +58,7 @@ object AirlinesPage {
       FormField.text("Name", nameVar),
       FormField.text("Alias", aliasVar),
       FormField.text("Callsign", callsignVar),
+      FormField.text("IATA", iataVar, "IB"),
       FormField.text("Country (ISO code)", countryCodeVar, "ES"),
       FormField.errorBanner(errVar),
       FormActions.saveDeleteCancel(savingVar.signal, save, remove, onCancel)
@@ -67,6 +70,7 @@ object AirlinesPage {
     val nameVar = Var("")
     val aliasVar = Var("")
     val callsignVar = Var("")
+    val iataVar = Var("")
     val countryCodeVar = Var("")
     val savingVar = Var(false)
     val errVar = Var(Option.empty[String])
@@ -77,7 +81,8 @@ object AirlinesPage {
         nameVar.now().trim,
         countryCodeVar.now().trim.toUpperCase,
         Option(aliasVar.now().trim).filter(_.nonEmpty),
-        Option(callsignVar.now().trim).filter(_.nonEmpty)
+        Option(callsignVar.now().trim).filter(_.nonEmpty),
+        Option(iataVar.now().trim.toUpperCase).filter(_.nonEmpty)
       )
       AsyncAction.run(savingVar, errVar)(AirlinesApi.create(req))(onCreated)
     }
@@ -89,6 +94,7 @@ object AirlinesPage {
       FormField.text("Name", nameVar, "Iberia"),
       FormField.text("Alias", aliasVar, "Iberia Express"),
       FormField.text("Callsign", callsignVar, "IBERIA"),
+      FormField.text("IATA", iataVar, "IB"),
       FormField.text("Country (ISO code)", countryCodeVar, "ES"),
       FormField.errorBanner(errVar),
       FormActions.saveCancel(savingVar.signal, save, onCancel)
@@ -121,19 +127,7 @@ object AirlinesPage {
       reload: () => Unit,
       clearSearch: () => Unit
   ): List[HtmlElement] =
-    List(
-      input(
-        cls := "search-input",
-        placeholder := "Country code (e.g. ES)",
-        controlled(value <-- filterVar.signal, onInput.mapToValue --> filterVar.writer),
-        onFocus --> (_ => clearSearch()),
-        onInput(_.debounce(350).map(_.target.asInstanceOf[dom.html.Input].value)) -->
-          Observer[String] { v =>
-            val trimmed = v.trim
-            if (trimmed.isEmpty || trimmed.length >= MinCountrySearchLength) reload()
-          }
-      )
-    )
+    List(DebouncedFilterInput(filterVar, "Country code (e.g. ES)", MinCountrySearchLength, reload, clearSearch))
 
   def apply(): HtmlElement = {
     val countryFilterVar = Var("")
@@ -144,13 +138,15 @@ object AirlinesPage {
         "ICAO" -> (_.icao),
         "Name" -> (_.name),
         "Alias" -> (a => a.alias.getOrElse("—")),
-        "Callsign" -> (a => a.callsign.getOrElse("—"))
+        "Callsign" -> (a => a.callsign.getOrElse("—")),
+        "IATA" -> (a => a.iata.getOrElse("—"))
       ),
       rowKey = _.icao,
       matchesSearch = (a, needle) =>
         a.name.toLowerCase.contains(needle) ||
           a.icao.toLowerCase.contains(needle) ||
-          a.alias.exists(_.toLowerCase.contains(needle)),
+          a.alias.exists(_.toLowerCase.contains(needle)) ||
+          a.iata.exists(_.toLowerCase.contains(needle)),
       sampleData = sampleData,
       fetchPage = fetchAirlines(countryFilterVar),
       renderCreateForm = createForm,
@@ -172,13 +168,15 @@ object AirlinesPage {
         "ICAO" -> (_.icao),
         "Name" -> (_.name),
         "Alias" -> (a => a.alias.getOrElse("—")),
-        "Callsign" -> (a => a.callsign.getOrElse("—"))
+        "Callsign" -> (a => a.callsign.getOrElse("—")),
+        "IATA" -> (a => a.iata.getOrElse("—"))
       ),
       rowKey = _.icao,
       matchesSearch = (a, needle) =>
         a.name.toLowerCase.contains(needle) ||
           a.icao.toLowerCase.contains(needle) ||
-          a.alias.exists(_.toLowerCase.contains(needle)),
+          a.alias.exists(_.toLowerCase.contains(needle)) ||
+          a.iata.exists(_.toLowerCase.contains(needle)),
       sampleData = sampleData,
       fetchPage = fetchAirlines(countryFilterVar),
       emptySelectionHint = "Select an airline from the list to see its details. Viewer mode is read-only.",

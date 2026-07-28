@@ -3,6 +3,7 @@ package app.pages
 import app.api.AircraftApi
 import app.api.Http.given
 import app.components.AsyncAction
+import app.components.DebouncedFilterInput
 import app.components.EntityCrudPage
 import app.components.FormActions
 import app.components.FormField
@@ -121,16 +122,12 @@ object AircraftPage {
         onKeyDown.filter(_.key == "Enter") --> Observer[dom.KeyboardEvent](_ => submitRegistration())
       ),
       button(cls := "btn btn-secondary", "Search", onClick --> (_ => submitRegistration())),
-      input(
-        cls := "search-input",
-        placeholder := "Airline ICAO code (e.g. IBE)",
-        controlled(value <-- airlineFilterVar.signal, onInput.mapToValue --> airlineFilterVar.writer),
-        onFocus --> (_ => { clearSearch(); registrationVar.set("") }),
-        onInput(_.debounce(350).map(_.target.asInstanceOf[dom.html.Input].value)) -->
-          Observer[String] { v =>
-            val trimmed = v.trim
-            if (trimmed.isEmpty || trimmed.length >= MinAirlineSearchLength) reload()
-          }
+      DebouncedFilterInput(
+        airlineFilterVar,
+        "Airline ICAO code (e.g. IBE)",
+        MinAirlineSearchLength,
+        reload,
+        () => { clearSearch(); registrationVar.set("") }
       )
     )
   }
