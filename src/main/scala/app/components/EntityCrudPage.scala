@@ -32,31 +32,38 @@ object DetailMode {
   */
 object EntityCrudPage {
 
-  def apply[T](
-      title: String,
-      searchPlaceholder: String,
-      columns: List[(String, T => String)],
-      rowKey: T => String,
+  /** The paginated-loading/search/sample-data-fallback state machine shared by `apply` and `readOnly` — the two only
+    * differ in what they do with a row once it's selected (full CRUD vs. read-only field dump), not in how the list
+    * itself is loaded, paged, or filtered.
+    */
+  private final case class LoadState[T](
+      itemsVar: Var[List[T]],
+      loadingVar: Var[Boolean],
+      errorVar: Var[Option[String]],
+      searchVar: Var[String],
+      activeQueryVar: Var[String],
+      pageVar: Var[Int],
+      hasNextVar: Var[Boolean],
+      filtered: Signal[List[T]],
+      load: (Int, String) => Unit,
+      goToPrevPage: () => Unit,
+      goToNextPage: () => Unit,
+      runServerSearch: String => Unit
+  )
+
+  private def buildLoadState[T](
+      fetchPage: (Int, String) => Future[List[T]],
       matchesSearch: (T, String) => Boolean,
       sampleData: List[T],
-      fetchPage: (Int, String) => Future[List[T]],
-      renderCreateForm: (T => Unit, () => Unit) => HtmlElement,
-      renderEditForm: (T, T => Unit, () => Unit, () => Unit) => HtmlElement,
-      emptySelectionHint: String,
-      pageSize: Int = Http.defaultPageSize,
-      serverSearch: Boolean = false,
-      debounceMs: Int = 350,
-      minSearchLength: Int = 0,
-      renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
-      onSearchFocus: () => Unit = () => ()
-  ): HtmlElement = {
-
+      pageSize: Int,
+      serverSearch: Boolean,
+      minSearchLength: Int
+  ): LoadState[T] = {
     val itemsVar = Var(List.empty[T])
     val loadingVar = Var(true)
     val errorVar = Var(Option.empty[String])
     val searchVar = Var("")
     val activeQueryVar = Var("")
-    val detailModeVar = Var[DetailMode[T]](DetailMode.NoSelection)
     val pageVar = Var(1)
     val hasNextVar = Var(false)
 
@@ -87,23 +94,71 @@ object EntityCrudPage {
       if (serverSearch && (trimmed.isEmpty || trimmed.length >= minSearchLength)) load(1, query)
     }
 
-    def filtered: Signal[List[T]] =
+    val filtered: Signal[List[T]] =
       itemsVar.signal.combineWith(searchVar.signal).map {
         case (items, q) =>
           val needle = q.trim.toLowerCase
           if (needle.isEmpty) items else items.filter(matchesSearch(_, needle))
       }
 
+    LoadState(
+      itemsVar,
+      loadingVar,
+      errorVar,
+      searchVar,
+      activeQueryVar,
+      pageVar,
+      hasNextVar,
+      filtered,
+      load,
+      goToPrevPage,
+      goToNextPage,
+      runServerSearch
+    )
+  }
+
+  private def searchBox(
+      state: LoadState[?],
+      searchPlaceholder: String,
+      debounceMs: Int,
+      onSearchFocus: () => Unit
+  ): HtmlElement =
+    input(
+      cls := "search-input",
+      placeholder := searchPlaceholder,
+      controlled(value <-- state.searchVar.signal, onInput.mapToValue --> state.searchVar.writer),
+      onFocus --> (_ => onSearchFocus()),
+      onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+        Observer[String](state.runServerSearch)
+    )
+
+  def apply[T](
+      title: String,
+      searchPlaceholder: String,
+      columns: List[(String, T => String)],
+      rowKey: T => String,
+      matchesSearch: (T, String) => Boolean,
+      sampleData: List[T],
+      fetchPage: (Int, String) => Future[List[T]],
+      renderCreateForm: (T => Unit, () => Unit) => HtmlElement,
+      renderEditForm: (T, T => Unit, () => Unit, () => Unit) => HtmlElement,
+      emptySelectionHint: String,
+      pageSize: Int = Http.defaultPageSize,
+      serverSearch: Boolean = false,
+      debounceMs: Int = 350,
+      minSearchLength: Int = 0,
+      renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
+      onSearchFocus: () => Unit = () => ()
+  ): HtmlElement = {
+
+    val state = buildLoadState(fetchPage, matchesSearch, sampleData, pageSize, serverSearch, minSearchLength)
+    import state._
+
+    val detailModeVar = Var[DetailMode[T]](DetailMode.NoSelection)
+
     val toolbar = div(
       cls := "entity-toolbar",
-      input(
-        cls := "search-input",
-        placeholder := searchPlaceholder,
-        controlled(value <-- searchVar.signal, onInput.mapToValue --> searchVar.writer),
-        onFocus --> (_ => onSearchFocus()),
-        onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
-          Observer[String](runServerSearch)
-      ),
+      searchBox(state, searchPlaceholder, debounceMs, onSearchFocus),
       renderExtraToolbar(() => load(1, activeQueryVar.now()), () => searchVar.set("")),
       button(cls := "btn btn-add", "+ Add", onClick --> (_ => detailModeVar.set(DetailMode.Creating)))
     )
@@ -174,59 +229,14 @@ object EntityCrudPage {
       onSearchFocus: () => Unit = () => ()
   ): HtmlElement = {
 
-    val itemsVar = Var(List.empty[T])
-    val loadingVar = Var(true)
-    val errorVar = Var(Option.empty[String])
-    val searchVar = Var("")
-    val activeQueryVar = Var("")
+    val state = buildLoadState(fetchPage, matchesSearch, sampleData, pageSize, serverSearch, minSearchLength)
+    import state._
+
     val selectedVar = Var(Option.empty[T])
-    val pageVar = Var(1)
-    val hasNextVar = Var(false)
-
-    def load(page: Int, query: String): Unit = {
-      loadingVar.set(true)
-      errorVar.set(None)
-      fetchPage(page, query).onComplete {
-        case Success(list) =>
-          loadingVar.set(false)
-          pageVar.set(page)
-          activeQueryVar.set(query)
-          hasNextVar.set(list.size >= pageSize)
-          itemsVar.set(list)
-        case Failure(_) =>
-          loadingVar.set(false)
-          errorVar.set(Some(Http.backendUnreachableMessage))
-          pageVar.set(page)
-          activeQueryVar.set(query)
-          hasNextVar.set(false)
-          itemsVar.set(sampleData)
-      }
-    }
-
-    def goToPrevPage(): Unit = if (pageVar.now() > 1) load(pageVar.now() - 1, activeQueryVar.now())
-    def goToNextPage(): Unit = if (hasNextVar.now()) load(pageVar.now() + 1, activeQueryVar.now())
-    def runServerSearch(query: String): Unit = {
-      val trimmed = query.trim
-      if (serverSearch && (trimmed.isEmpty || trimmed.length >= minSearchLength)) load(1, query)
-    }
-
-    def filtered: Signal[List[T]] =
-      itemsVar.signal.combineWith(searchVar.signal).map {
-        case (items, q) =>
-          val needle = q.trim.toLowerCase
-          if (needle.isEmpty) items else items.filter(matchesSearch(_, needle))
-      }
 
     val toolbar = div(
       cls := "entity-toolbar",
-      input(
-        cls := "search-input",
-        placeholder := searchPlaceholder,
-        controlled(value <-- searchVar.signal, onInput.mapToValue --> searchVar.writer),
-        onFocus --> (_ => onSearchFocus()),
-        onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
-          Observer[String](runServerSearch)
-      ),
+      searchBox(state, searchPlaceholder, debounceMs, onSearchFocus),
       renderExtraToolbar(() => load(1, activeQueryVar.now()), () => searchVar.set(""))
     )
 
