@@ -11,6 +11,7 @@ import app.models.AirlineDto
 import app.models.CreateAirlineRequest
 import app.models.UpdateAirlineRequest
 import com.raquo.laminar.api.L._
+import org.scalajs.dom
 
 import scala.concurrent.Future
 
@@ -98,15 +99,44 @@ object AirlinesPage {
   // fetchPage slices that full match list itself to keep Prev/Next behaving the same way it does for a plain list.
   private val MinNameSearchLength = 3
 
-  private def fetchAirlines(page: Int, query: String): Future[List[AirlineDto]] =
-    if (query.trim.length >= MinNameSearchLength)
+  // ISO 3166-1 alpha-2 codes are exactly 2 letters, so 2 is both the minimum and the practical maximum useful length.
+  private val MinCountrySearchLength = 2
+
+  private def fetchAirlines(countryFilterVar: Var[String])(page: Int, query: String): Future[List[AirlineDto]] = {
+    val country = countryFilterVar.now().trim.toUpperCase
+    if (country.nonEmpty) AirlinesApi.byCountry(country, page)
+    else if (query.trim.length >= MinNameSearchLength)
       AirlinesApi.search(query.trim).map { matches =>
         val pageSize = Http.defaultPageSize
         matches.slice((page - 1) * pageSize, page * pageSize)
       }
     else AirlinesApi.list(page = page)
+  }
 
-  def apply(): HtmlElement =
+  // Country-by-code browse. Takes priority over the name search when set, since the backend has no endpoint
+  // combining both — so focusing either box clears the other to avoid the confusing state of both holding text at
+  // once. Debounced auto-fire at 2+ characters mirrors the name search box's own serverSearch behavior.
+  private def countryFilterControl(
+      filterVar: Var[String],
+      reload: () => Unit,
+      clearSearch: () => Unit
+  ): List[HtmlElement] =
+    List(
+      input(
+        cls := "search-input",
+        placeholder := "Country code (e.g. ES)",
+        controlled(value <-- filterVar.signal, onInput.mapToValue --> filterVar.writer),
+        onFocus --> (_ => clearSearch()),
+        onInput(_.debounce(350).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+          Observer[String] { v =>
+            val trimmed = v.trim
+            if (trimmed.isEmpty || trimmed.length >= MinCountrySearchLength) reload()
+          }
+      )
+    )
+
+  def apply(): HtmlElement = {
+    val countryFilterVar = Var("")
     EntityCrudPage[AirlineDto](
       title = "Airlines",
       searchPlaceholder = "Search airline by name (3+ characters)…",
@@ -122,15 +152,19 @@ object AirlinesPage {
           a.icao.toLowerCase.contains(needle) ||
           a.alias.exists(_.toLowerCase.contains(needle)),
       sampleData = sampleData,
-      fetchPage = fetchAirlines,
+      fetchPage = fetchAirlines(countryFilterVar),
       renderCreateForm = createForm,
       renderEditForm = editForm,
       emptySelectionHint = "Select an airline from the list, or click \"Add\".",
       serverSearch = true,
-      minSearchLength = MinNameSearchLength
+      minSearchLength = MinNameSearchLength,
+      renderExtraToolbar = (reload, clearSearch) => countryFilterControl(countryFilterVar, reload, clearSearch),
+      onSearchFocus = () => countryFilterVar.set("")
     )
+  }
 
-  def readOnly(): HtmlElement =
+  def readOnly(): HtmlElement = {
+    val countryFilterVar = Var("")
     EntityCrudPage.readOnly[AirlineDto](
       title = "Airlines",
       searchPlaceholder = "Search airline by name (3+ characters)…",
@@ -146,9 +180,12 @@ object AirlinesPage {
           a.icao.toLowerCase.contains(needle) ||
           a.alias.exists(_.toLowerCase.contains(needle)),
       sampleData = sampleData,
-      fetchPage = fetchAirlines,
+      fetchPage = fetchAirlines(countryFilterVar),
       emptySelectionHint = "Select an airline from the list to see its details. Viewer mode is read-only.",
       serverSearch = true,
-      minSearchLength = MinNameSearchLength
+      minSearchLength = MinNameSearchLength,
+      renderExtraToolbar = (reload, clearSearch) => countryFilterControl(countryFilterVar, reload, clearSearch),
+      onSearchFocus = () => countryFilterVar.set("")
     )
+  }
 }
