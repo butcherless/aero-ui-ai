@@ -11,6 +11,7 @@ import app.models.AirportDto
 import app.models.CreateAirportRequest
 import app.models.UpdateAirportRequest
 import com.raquo.laminar.api.L._
+import org.scalajs.dom
 
 import scala.concurrent.Future
 import scala.util.Failure
@@ -107,6 +108,9 @@ object AirportsPage {
   // fetchPage slices that full match list itself to keep Prev/Next behaving the same way it does for a plain list.
   private val MinNameSearchLength = 3
 
+  // ISO 3166-1 alpha-2 codes are exactly 2 letters, so 2 is both the minimum and the practical maximum useful length.
+  private val MinCountrySearchLength = 2
+
   private def fetchAirports(countryFilterVar: Var[String])(page: Int, query: String): Future[List[AirportDto]] = {
     val country = countryFilterVar.now().trim.toUpperCase
     if (country.nonEmpty) AirportsApi.byCountry(country, page)
@@ -118,9 +122,9 @@ object AirportsPage {
     else AirportsApi.list(page = page)
   }
 
-  // Country-by-code browse, mirroring RoutesPage's browse-by-airline-ICAO toolbar. Takes priority over the name
-  // search when set, since the backend has no endpoint combining both — so focusing either box clears the other to
-  // avoid the confusing state of both holding text at once.
+  // Country-by-code browse. Takes priority over the name search when set, since the backend has no endpoint
+  // combining both — so focusing either box clears the other to avoid the confusing state of both holding text at
+  // once. Debounced auto-fire at 2+ characters mirrors the name search box's own serverSearch behavior.
   private def countryFilterControl(
       filterVar: Var[String],
       reload: () => Unit,
@@ -131,9 +135,13 @@ object AirportsPage {
         cls := "search-input",
         placeholder := "Country code (e.g. ES)",
         controlled(value <-- filterVar.signal, onInput.mapToValue --> filterVar.writer),
-        onFocus --> (_ => clearSearch())
-      ),
-      button(cls := "btn btn-secondary", "Filter", onClick --> (_ => reload()))
+        onFocus --> (_ => clearSearch()),
+        onInput(_.debounce(350).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+          Observer[String] { v =>
+            val trimmed = v.trim
+            if (trimmed.isEmpty || trimmed.length >= MinCountrySearchLength) reload()
+          }
+      )
     )
 
   def apply(): HtmlElement = {
