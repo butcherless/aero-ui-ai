@@ -26,39 +26,52 @@ object RoutesPage {
     RouteDto("MAD", "BCN", 483)
   )
 
-  private sealed trait DetailMode
-  private case object NoSelection extends DetailMode
-  private case object Creating extends DetailMode
-  private case class Editing(item: RouteDto) extends DetailMode
-
-  private val itemsVar = Var(List.empty[RouteDto])
-  private val loadingVar = Var(false)
-  private val errorVar = Var(Option.empty[String])
-  private val queryIcaoVar = Var("")
-  private val detailModeVar = Var[DetailMode](NoSelection)
-
   private def rowKey(r: RouteDto): String = s"${r.originIata}-${r.destinationIata}"
 
-  private def search(): Unit = {
-    val icao = queryIcaoVar.now().trim.toUpperCase
-    if (icao.length != 3) {
-      errorVar.set(Some("Enter a 3-letter airline ICAO code (e.g. AEA)."))
-    } else {
-      loadingVar.set(true)
-      errorVar.set(None)
-      RoutesApi.byAirline(icao).onComplete {
-        case Success(list) =>
-          loadingVar.set(false)
-          itemsVar.set(list)
-        case Failure(_) =>
-          loadingVar.set(false)
-          errorVar.set(Some(Http.backendUnreachableMessage))
-          itemsVar.set(sampleData)
+  private val InvalidIcaoMessage = "Enter a 3-letter airline ICAO code (e.g. AEA)."
+  private val SearchPlaceholder = "View an airline's routes (ICAO, e.g. AEA)…"
+
+  // The browse-by-airline-ICAO search state is identical for the editable and read-only variants — they only differ
+  // in what the detail panel lets you do with a selected route, not in how the list itself is searched/loaded.
+  private final case class BrowseState(
+      itemsVar: Var[List[RouteDto]],
+      loadingVar: Var[Boolean],
+      errorVar: Var[Option[String]],
+      queryIcaoVar: Var[String],
+      search: () => Unit
+  )
+
+  private def buildBrowseState(): BrowseState = {
+    val itemsVar = Var(List.empty[RouteDto])
+    val loadingVar = Var(false)
+    val errorVar = Var(Option.empty[String])
+    val queryIcaoVar = Var("")
+
+    def search(): Unit = {
+      val icao = queryIcaoVar.now().trim.toUpperCase
+      if (icao.length != 3) {
+        errorVar.set(Some(InvalidIcaoMessage))
+      } else {
+        loadingVar.set(true)
+        errorVar.set(None)
+        RoutesApi.byAirline(icao).onComplete {
+          case Success(list) =>
+            loadingVar.set(false)
+            itemsVar.set(list)
+          case Failure(_) =>
+            loadingVar.set(false)
+            errorVar.set(Some(Http.backendUnreachableMessage))
+            itemsVar.set(sampleData)
+        }
       }
     }
+
+    BrowseState(itemsVar, loadingVar, errorVar, queryIcaoVar, search)
   }
 
-  private def airlinesSubsection(route: RouteDto): HtmlElement = {
+  // `editable` toggles the associate-a-new-airline input and the per-chip ✕ remove button; the read-only variant
+  // shows the same chip list with neither.
+  private def airlinesSubsection(route: RouteDto, editable: Boolean): HtmlElement = {
     val airlinesVar = Var(List.empty[AirlineDto])
     val newIcaoVar = Var("")
     val subErrVar = Var(Option.empty[String])
@@ -89,40 +102,72 @@ object RoutesPage {
         case Failure(ex) => subErrVar.set(Some(ex.getMessage))
       }
 
+    def chip(a: AirlineDto): HtmlElement =
+      if (editable) div(cls := "chip", a.icao, button("✕", onClick --> (_ => remove(a.icao))))
+      else div(cls := "chip", a.icao)
+
+    val writeControls: List[HtmlElement] =
+      if (!editable) Nil
+      else
+        List(
+          div(
+            cls := "entity-toolbar",
+            input(
+              cls := "search-input",
+              placeholder := "Airline ICAO (e.g. AEA)",
+              controlled(value <-- newIcaoVar.signal, onInput.mapToValue --> newIcaoVar.writer)
+            ),
+            button(cls := "btn btn-secondary", "Associate", onClick --> (_ => add()))
+          ),
+          FormField.errorBanner(subErrVar)
+        )
+
     div(
       cls := "detail-subsection",
       div(cls := "detail-subsection-title", "Airlines operating this route"),
-      div(
-        cls := "chip-list",
-        children <-- airlinesVar.signal.map(
-          _.map(a => div(cls := "chip", a.icao, button("✕", onClick --> (_ => remove(a.icao)))))
-        )
-      ),
-      div(
-        cls := "entity-toolbar",
-        input(
-          cls := "search-input",
-          placeholder := "Airline ICAO (e.g. AEA)",
-          controlled(value <-- newIcaoVar.signal, onInput.mapToValue --> newIcaoVar.writer)
-        ),
-        button(cls := "btn btn-secondary", "Associate", onClick --> (_ => add()))
-      ),
-      FormField.errorBanner(subErrVar)
+      div(cls := "chip-list", children <-- airlinesVar.signal.map(_.map(chip))),
+      writeControls
     )
   }
 
-  private def editView(route: RouteDto): HtmlElement =
+  private def detailView(route: RouteDto, editable: Boolean, onClose: () => Unit): HtmlElement =
     div(
       cls := "detail-form",
       div(cls := "detail-heading", "Selected route"),
       FormField.readOnly("Origin", route.originIata),
       FormField.readOnly("Destination", route.destinationIata),
       FormField.readOnly("Distance (km)", route.distanceKm.toString),
-      FormActions.close(() => detailModeVar.set(NoSelection)),
-      airlinesSubsection(route)
+      FormActions.close(onClose),
+      airlinesSubsection(route, editable)
     )
 
-  private def createForm(): HtmlElement = {
+  private def routeTable(
+      rows: Signal[List[RouteDto]],
+      selectedKey: Signal[Option[String]],
+      onRowClick: RouteDto => Unit,
+      loading: Signal[Boolean],
+      error: Signal[Option[String]]
+  ): HtmlElement =
+    EntityTable[RouteDto](
+      columns = List(
+        "Origin" -> (_.originIata),
+        "Destination" -> (_.destinationIata),
+        "Distance (km)" -> (_.distanceKm.toString)
+      ),
+      rows = rows,
+      rowKey = rowKey,
+      selectedKey = selectedKey,
+      onRowClick = onRowClick,
+      loading = loading,
+      error = error
+    )
+
+  private sealed trait DetailMode
+  private case object NoSelection extends DetailMode
+  private case object Creating extends DetailMode
+  private case class Editing(item: RouteDto) extends DetailMode
+
+  private def createForm(itemsVar: Var[List[RouteDto]], detailModeVar: Var[DetailMode]): HtmlElement = {
     val originVar = Var("")
     val destinationVar = Var("")
     val distanceVar = Var("")
@@ -153,25 +198,24 @@ object RoutesPage {
   }
 
   def apply(): HtmlElement = {
+    val state = buildBrowseState()
+    import state._
+
+    val detailModeVar = Var[DetailMode](NoSelection)
+
     val toolbar = div(
       cls := "entity-toolbar",
       input(
         cls := "search-input",
-        placeholder := "View an airline's routes (ICAO, e.g. AEA)…",
+        placeholder := SearchPlaceholder,
         controlled(value <-- queryIcaoVar.signal, onInput.mapToValue --> queryIcaoVar.writer)
       ),
       button(cls := "btn btn-secondary", "Search", onClick --> (_ => search())),
       button(cls := "btn btn-add", "+ Add", onClick --> (_ => detailModeVar.set(Creating)))
     )
 
-    val list = EntityTable[RouteDto](
-      columns = List(
-        "Origin" -> (_.originIata),
-        "Destination" -> (_.destinationIata),
-        "Distance (km)" -> (_.distanceKm.toString)
-      ),
+    val list = routeTable(
       rows = itemsVar.signal,
-      rowKey = rowKey,
       selectedKey = detailModeVar.signal.map { case Editing(r) => Some(rowKey(r)); case _ => None },
       onRowClick = item => detailModeVar.set(Editing(item)),
       loading = loadingVar.signal,
@@ -181,100 +225,44 @@ object RoutesPage {
     val detail: Signal[HtmlElement] = detailModeVar.signal.map {
       case NoSelection =>
         div(cls := "detail-placeholder", "Search for an airline's routes, select a row, or click \"Add\".")
-      case Creating => createForm()
-      case Editing(item) => editView(item)
+      case Creating => createForm(itemsVar, detailModeVar)
+      case Editing(item) => detailView(item, editable = true, onClose = () => detailModeVar.set(NoSelection))
     }
 
     MasterDetailShell("Routes", toolbar, list, detail)
   }
 
-  private val roItemsVar = Var(List.empty[RouteDto])
-  private val roLoadingVar = Var(false)
-  private val roErrorVar = Var(Option.empty[String])
-  private val roQueryIcaoVar = Var("")
-  private val roSelectedVar = Var(Option.empty[RouteDto])
-
-  private def roSearch(): Unit = {
-    val icao = roQueryIcaoVar.now().trim.toUpperCase
-    if (icao.length != 3) {
-      roErrorVar.set(Some("Enter a 3-letter airline ICAO code (e.g. AEA)."))
-    } else {
-      roLoadingVar.set(true)
-      roErrorVar.set(None)
-      RoutesApi.byAirline(icao).onComplete {
-        case Success(list) =>
-          roLoadingVar.set(false)
-          roItemsVar.set(list)
-        case Failure(_) =>
-          roLoadingVar.set(false)
-          roErrorVar.set(Some(Http.backendUnreachableMessage))
-          roItemsVar.set(sampleData)
-      }
-    }
-  }
-
-  private def roAirlinesSubsection(route: RouteDto): HtmlElement = {
-    val airlinesVar = Var(List.empty[AirlineDto])
-
-    RoutesApi.airlinesOperating(route.originIata, route.destinationIata).onComplete {
-      case Success(list) => airlinesVar.set(list)
-      case Failure(_) => airlinesVar.set(Nil)
-    }
-
-    div(
-      cls := "detail-subsection",
-      div(cls := "detail-subsection-title", "Airlines operating this route"),
-      div(
-        cls := "chip-list",
-        children <-- airlinesVar.signal.map(_.map(a => div(cls := "chip", a.icao)))
-      )
-    )
-  }
-
-  private def roDetailView(route: RouteDto): HtmlElement =
-    div(
-      cls := "detail-form",
-      div(cls := "detail-heading", "Selected route"),
-      FormField.readOnly("Origin", route.originIata),
-      FormField.readOnly("Destination", route.destinationIata),
-      FormField.readOnly("Distance (km)", route.distanceKm.toString),
-      FormActions.close(() => roSelectedVar.set(None)),
-      roAirlinesSubsection(route)
-    )
-
   /** Read-only counterpart to `apply`: same browse-by-airline search, no "+ Add" button, and the airlines subsection is
-    * shown without the associate/disassociate controls. Uses its own module-level state, separate from `apply`'s, so
-    * the two pages don't interfere with each other's in-progress search/selection.
+    * shown without the associate/disassociate controls.
     */
   def readOnly(): HtmlElement = {
+    val state = buildBrowseState()
+    import state._
+
+    val selectedVar = Var(Option.empty[RouteDto])
+
     val toolbar = div(
       cls := "entity-toolbar",
       input(
         cls := "search-input",
-        placeholder := "View an airline's routes (ICAO, e.g. AEA)…",
-        controlled(value <-- roQueryIcaoVar.signal, onInput.mapToValue --> roQueryIcaoVar.writer)
+        placeholder := SearchPlaceholder,
+        controlled(value <-- queryIcaoVar.signal, onInput.mapToValue --> queryIcaoVar.writer)
       ),
-      button(cls := "btn btn-secondary", "Search", onClick --> (_ => roSearch()))
+      button(cls := "btn btn-secondary", "Search", onClick --> (_ => search()))
     )
 
-    val list = EntityTable[RouteDto](
-      columns = List(
-        "Origin" -> (_.originIata),
-        "Destination" -> (_.destinationIata),
-        "Distance (km)" -> (_.distanceKm.toString)
-      ),
-      rows = roItemsVar.signal,
-      rowKey = rowKey,
-      selectedKey = roSelectedVar.signal.map(_.map(rowKey)),
-      onRowClick = item => roSelectedVar.set(Some(item)),
-      loading = roLoadingVar.signal,
-      error = roErrorVar.signal
+    val list = routeTable(
+      rows = itemsVar.signal,
+      selectedKey = selectedVar.signal.map(_.map(rowKey)),
+      onRowClick = item => selectedVar.set(Some(item)),
+      loading = loadingVar.signal,
+      error = errorVar.signal
     )
 
-    val detail: Signal[HtmlElement] = roSelectedVar.signal.map {
+    val detail: Signal[HtmlElement] = selectedVar.signal.map {
       case None =>
         div(cls := "detail-placeholder", "Search for an airline's routes, then select a row. Viewer mode is read-only.")
-      case Some(item) => roDetailView(item)
+      case Some(item) => detailView(item, editable = false, onClose = () => selectedVar.set(None))
     }
 
     MasterDetailShell("Routes", toolbar, list, detail)
