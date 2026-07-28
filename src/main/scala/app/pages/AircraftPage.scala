@@ -10,6 +10,9 @@ import app.models.AircraftDto
 import app.models.CreateAircraftRequest
 import app.models.UpdateAircraftRequest
 import com.raquo.laminar.api.L._
+import org.scalajs.dom
+
+import scala.concurrent.Future
 
 object AircraftPage {
 
@@ -82,7 +85,59 @@ object AircraftPage {
     )
   }
 
-  def apply(): HtmlElement =
+  // Unlike Airports/Airlines, Aircraft has no partial-search endpoint and no query param on the list
+  // endpoint — only an exact-match GET .../aircraft/{registration}. So the registration box fires on an
+  // explicit button/Enter rather than a debounced character threshold, and always performs an exact lookup.
+  // A 404 (or any failure) is treated as "no results", not the sample-data fallback error banner.
+  private def fetchAircraft(
+      registrationVar: Var[String],
+      airlineFilterVar: Var[String]
+  )(page: Int, query: String): Future[List[AircraftDto]] = {
+    val registration = registrationVar.now().trim.toUpperCase
+    val airline = airlineFilterVar.now().trim.toUpperCase
+    if (registration.nonEmpty) AircraftApi.get(registration).map(List(_)).recover { case _ => Nil }
+    else if (airline.nonEmpty) AircraftApi.byAirline(airline, page)
+    else AircraftApi.list(page = page)
+  }
+
+  // ICAO airline codes are exactly 3 letters, so 3 is both the minimum and the practical maximum useful
+  // length — debounced auto-fire mirrors Airports/Airlines' country filter.
+  private val MinAirlineSearchLength = 3
+
+  // The two boxes and the built-in search box are mutually exclusive (focusing one clears the others),
+  // same rationale as Airports/Airlines: the backend has no endpoint combining registration + airline.
+  private def extraToolbar(
+      registrationVar: Var[String],
+      airlineFilterVar: Var[String]
+  )(reload: () => Unit, clearSearch: () => Unit): List[HtmlElement] = {
+    def submitRegistration(): Unit = if (registrationVar.now().trim.nonEmpty) reload()
+
+    List(
+      input(
+        cls := "search-input",
+        placeholder := "Registration (exact, e.g. EC-MIG)",
+        controlled(value <-- registrationVar.signal, onInput.mapToValue --> registrationVar.writer),
+        onFocus --> (_ => { clearSearch(); airlineFilterVar.set("") }),
+        onKeyDown.filter(_.key == "Enter") --> Observer[dom.KeyboardEvent](_ => submitRegistration())
+      ),
+      button(cls := "btn btn-secondary", "Search", onClick --> (_ => submitRegistration())),
+      input(
+        cls := "search-input",
+        placeholder := "Airline ICAO code (e.g. IBE)",
+        controlled(value <-- airlineFilterVar.signal, onInput.mapToValue --> airlineFilterVar.writer),
+        onFocus --> (_ => { clearSearch(); registrationVar.set("") }),
+        onInput(_.debounce(350).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+          Observer[String] { v =>
+            val trimmed = v.trim
+            if (trimmed.isEmpty || trimmed.length >= MinAirlineSearchLength) reload()
+          }
+      )
+    )
+  }
+
+  def apply(): HtmlElement = {
+    val registrationVar = Var("")
+    val airlineFilterVar = Var("")
     EntityCrudPage[AircraftDto](
       title = "Aircraft",
       searchPlaceholder = "Search aircraft (registration, type, airline)…",
@@ -99,13 +154,18 @@ object AircraftPage {
           a.description.toLowerCase.contains(needle) ||
           a.airlineIcao.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchPage = (page, _) => AircraftApi.list(page = page),
+      fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
       renderCreateForm = createForm,
       renderEditForm = editForm,
-      emptySelectionHint = "Select an aircraft from the list, or click \"Add\"."
+      emptySelectionHint = "Select an aircraft from the list, or click \"Add\".",
+      renderExtraToolbar = extraToolbar(registrationVar, airlineFilterVar),
+      onSearchFocus = () => { registrationVar.set(""); airlineFilterVar.set("") }
     )
+  }
 
-  def readOnly(): HtmlElement =
+  def readOnly(): HtmlElement = {
+    val registrationVar = Var("")
+    val airlineFilterVar = Var("")
     EntityCrudPage.readOnly[AircraftDto](
       title = "Aircraft",
       searchPlaceholder = "Search aircraft (registration, type, airline)…",
@@ -122,7 +182,10 @@ object AircraftPage {
           a.description.toLowerCase.contains(needle) ||
           a.airlineIcao.toLowerCase.contains(needle),
       sampleData = sampleData,
-      fetchPage = (page, _) => AircraftApi.list(page = page),
-      emptySelectionHint = "Select an aircraft from the list to see its details. Viewer mode is read-only."
+      fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
+      emptySelectionHint = "Select an aircraft from the list to see its details. Viewer mode is read-only.",
+      renderExtraToolbar = extraToolbar(registrationVar, airlineFilterVar),
+      onSearchFocus = () => { registrationVar.set(""); airlineFilterVar.set("") }
     )
+  }
 }

@@ -12,6 +12,15 @@ object AircraftApi {
       base + Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
     )
 
+  def get(registration: String): Future[AircraftDto] =
+    Http.getJson[AircraftDto](s"$base/$registration")
+
+  def byAirline(icao: String, page: Int = 1): Future[List[AircraftDto]] =
+    Http.getJsonList[AircraftDto](
+      s"/api/v1/airlines/$icao/aircraft" +
+        Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
+    )
+
   def create(req: CreateAircraftRequest): Future[AircraftDto] =
     Http.postJson[CreateAircraftRequest, AircraftDto](base, req)
 
