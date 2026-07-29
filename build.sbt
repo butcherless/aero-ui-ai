@@ -1,6 +1,23 @@
 import org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv
+import Dependencies.*
 
-ThisBuild / scalaVersion := "3.3.8"
+addCommandAlias("xdup", "dependencyUpdates")
+addCommandAlias("fmt", "scalafmtAll")
+
+// Reload the build automatically when project/*.scala or build.sbt change, instead of
+// just warning and requiring a manual `reload`.
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
+ThisBuild / scalaVersion := Versions.scala3
+
+ThisBuild / scalacOptions := Seq(
+  "-encoding",
+  "utf8",
+  "-deprecation",
+  "-feature",
+  "-unchecked",
+  "-Wunused:all" // required by scalafix's RemoveUnused rule
+)
 
 lazy val root = project
   .in(file("."))
@@ -18,13 +35,6 @@ lazy val root = project
 
     semanticdbEnabled := true, // required by scalafix
     semanticdbVersion := scalafixSemanticdb.revision,
-    scalacOptions += "-Wunused:all", // required by scalafix's RemoveUnused rule
 
-    libraryDependencies ++= Seq(
-      "com.raquo"     %%% "laminar"      % "17.2.1",
-      "org.scala-js"  %%% "scalajs-dom"  % "2.8.1",
-      "com.lihaoyi"   %%% "upickle"      % "4.4.3",
-      "org.scalatest" %%% "scalatest"    % "3.2.20" % Test,
-      "com.raquo"     %%% "domtestutils" % "19.0.0" % Test
-    )
+    libraryDependencies ++= Seq(laminar, scalaJsDom, upickle) ++ commonTest
   )
