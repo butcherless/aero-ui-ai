@@ -9,3 +9,4 @@ dist/
 public/js/
 .DS_Store
 .idea/
+.dev-run/
