@@ -58,10 +58,11 @@ object RoutesPage {
           case Success(list) =>
             loadingVar.set(false)
             itemsVar.set(list)
-          case Failure(_) =>
+          case Failure(ex) =>
+            val failure = Http.loadFailure(ex)
             loadingVar.set(false)
-            errorVar.set(Some(Http.backendUnreachableMessage))
-            itemsVar.set(sampleData)
+            errorVar.set(Some(failure.message))
+            itemsVar.set(if (failure.useSampleData) sampleData else Nil)
         }
       }
     }

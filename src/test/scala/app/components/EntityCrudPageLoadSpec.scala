@@ -47,7 +47,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
     }
   }
 
-  it("falls back to sample data with an error banner when the load fails") {
+  it("falls back to sample data with an error banner on a true network failure") {
     val promise = Promise[List[Item]]()
     val root = buildPage(fetchPage = (_, _) => promise.future, sampleData = List(Item("s", "Sample Item")))
 
@@ -57,6 +57,19 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
     promise.future.transformWith(_ => Future.successful(())).map { _ =>
       root.querySelector("tbody").textContent should include("Sample Item")
       root.textContent should include("Could not connect to the backend")
+    }
+  }
+
+  it("shows an empty list with the backend's own message on an ApiError, without sample data") {
+    val promise = Promise[List[Item]]()
+    val root = buildPage(fetchPage = (_, _) => promise.future, sampleData = List(Item("s", "Sample Item")))
+
+    promise.failure(app.api.Http.ApiError(404, "Country not found: AA"))
+
+    promise.future.transformWith(_ => Future.successful(())).map { _ =>
+      root.querySelector("tbody").textContent shouldBe "No results"
+      root.textContent should include("Country not found: AA")
+      root.textContent should not include "Sample Item"
     }
   }
 }

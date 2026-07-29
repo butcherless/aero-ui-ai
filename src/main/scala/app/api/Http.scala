@@ -24,7 +24,10 @@ object Http {
   /** Default page size for list endpoints (the backend accepts 1-100, defaulting to 20 itself). */
   val defaultPageSize = 20
 
-  /** Shown by every entity page when the initial load fails and it falls back to sample data. */
+  /** Shown by every entity page's initial-load failure banner when the backend genuinely couldn't be reached at all
+    * (DNS/connection failure, no `fetch` global, etc.) — as opposed to `loadFailure`'s `ApiError` case, where the
+    * backend answered, just not with what was asked for.
+    */
   val backendUnreachableMessage: String =
     "Could not connect to the backend (http://localhost:8080). Showing sample data."
 
@@ -32,6 +35,19 @@ object Http {
 
   /** Raised for any non-2xx response, carrying the backend's own error message when it sends one. */
   final case class ApiError(status: Int, message: String) extends RuntimeException(message)
+
+  /** What an entity page's initial-load failure banner should show, and whether it's meaningful to fall back to sample
+    * data. `useSampleData` is the key distinction: a real HTTP error response (ApiError) means the backend is up and is
+    * truthfully telling us there's nothing to show for this request (e.g. "Country not found: AA") — substituting
+    * unrelated sample rows there would misrepresent an empty result as data. Only a genuine network failure, where the
+    * backend can't be reached at all, warrants the sample-data fallback that keeps the app demoable.
+    */
+  final case class LoadFailure(message: String, useSampleData: Boolean)
+
+  def loadFailure(ex: Throwable): LoadFailure = ex match {
+    case ApiError(_, message) => LoadFailure(message, useSampleData = false)
+    case _ => LoadFailure(backendUnreachableMessage, useSampleData = true)
+  }
 
   // Wrapped in Future(...) so a synchronous throw from dom.fetch itself (e.g. no `fetch` global at
   // all, as under plain jsdom) becomes a failed Future like every other error case, instead of an

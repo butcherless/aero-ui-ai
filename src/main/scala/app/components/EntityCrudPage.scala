@@ -77,13 +77,14 @@ object EntityCrudPage {
           activeQueryVar.set(query)
           hasNextVar.set(list.size >= pageSize)
           itemsVar.set(list)
-        case Failure(_) =>
+        case Failure(ex) =>
+          val failure = Http.loadFailure(ex)
           loadingVar.set(false)
-          errorVar.set(Some(Http.backendUnreachableMessage))
+          errorVar.set(Some(failure.message))
           pageVar.set(page)
           activeQueryVar.set(query)
           hasNextVar.set(false)
-          itemsVar.set(sampleData)
+          itemsVar.set(if (failure.useSampleData) sampleData else Nil)
       }
     }
 

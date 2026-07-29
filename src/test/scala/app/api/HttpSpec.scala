@@ -22,4 +22,18 @@ class HttpSpec extends AnyFunSpec with Matchers {
       Http.query("q" -> Some("São Paulo")) shouldBe "?q=S%C3%A3o%20Paulo"
     }
   }
+
+  describe("Http.loadFailure") {
+    it("surfaces the backend's own message verbatim for an ApiError, and skips the sample-data fallback") {
+      val failure = Http.loadFailure(Http.ApiError(404, "Country not found: AA"))
+      failure.message shouldBe "Country not found: AA"
+      failure.useSampleData shouldBe false
+    }
+
+    it("falls back to the generic unreachable message and sample data for a true network failure") {
+      val failure = Http.loadFailure(new RuntimeException("network down"))
+      failure.message shouldBe Http.backendUnreachableMessage
+      failure.useSampleData shouldBe true
+    }
+  }
 }
