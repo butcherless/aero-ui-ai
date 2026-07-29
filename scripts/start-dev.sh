@@ -31,13 +31,15 @@ fi
 
 echo "==> Starting sbt ~fastLinkJS (log: ${SBT_LOG#"$ROOT_DIR/"})"
 set -m
-nohup sbt "~fastLinkJS" >"$SBT_LOG" 2>&1 &
+nohup sbt "~fastLinkJS" </dev/null >"$SBT_LOG" 2>&1 &
 echo $! >"$SBT_PID_FILE"
 set +m
 
 echo "==> Starting npm run dev (log: ${VITE_LOG#"$ROOT_DIR/"})"
 set -m
-nohup npm run dev >"$VITE_LOG" 2>&1 &
+# </dev/null: Vite's CLI reads stdin for its "press h + enter" REPL, which throws an uncaught EIO
+# and kills the process once nohup detaches stdin from a real terminal — give it a real (empty) fd instead.
+nohup npm run dev </dev/null >"$VITE_LOG" 2>&1 &
 echo $! >"$VITE_PID_FILE"
 set +m
 
