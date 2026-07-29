@@ -103,24 +103,30 @@ object FlightsPage {
     )
   }
 
+  private val columns: List[(String, FlightDto => String)] = List(
+    "Code" -> (_.code),
+    "Origin" -> (_.originIata),
+    "Destination" -> (_.destinationIata),
+    "Departure" -> (_.schedDeparture),
+    "Arrival" -> (_.schedArrival),
+    "Airline" -> (_.airlineIcao)
+  )
+
+  private val rowKey: FlightDto => String = _.code
+
+  private def matchesSearch(f: FlightDto, needle: String): Boolean =
+    f.code.toLowerCase.contains(needle) ||
+      f.originIata.toLowerCase.contains(needle) ||
+      f.destinationIata.toLowerCase.contains(needle) ||
+      f.airlineIcao.toLowerCase.contains(needle)
+
   def apply(): HtmlElement =
     EntityCrudPage[FlightDto](
       title = "Flights",
       searchPlaceholder = "Search flight (code, origin, destination, airline)…",
-      columns = List(
-        "Code" -> (_.code),
-        "Origin" -> (_.originIata),
-        "Destination" -> (_.destinationIata),
-        "Departure" -> (_.schedDeparture),
-        "Arrival" -> (_.schedArrival),
-        "Airline" -> (_.airlineIcao)
-      ),
-      rowKey = _.code,
-      matchesSearch = (f, needle) =>
-        f.code.toLowerCase.contains(needle) ||
-          f.originIata.toLowerCase.contains(needle) ||
-          f.destinationIata.toLowerCase.contains(needle) ||
-          f.airlineIcao.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = (page, _) => FlightsApi.list(page = page),
       renderCreateForm = createForm,
@@ -132,20 +138,9 @@ object FlightsPage {
     EntityCrudPage.readOnly[FlightDto](
       title = "Flights",
       searchPlaceholder = "Search flight (code, origin, destination, airline)…",
-      columns = List(
-        "Code" -> (_.code),
-        "Origin" -> (_.originIata),
-        "Destination" -> (_.destinationIata),
-        "Departure" -> (_.schedDeparture),
-        "Arrival" -> (_.schedArrival),
-        "Airline" -> (_.airlineIcao)
-      ),
-      rowKey = _.code,
-      matchesSearch = (f, needle) =>
-        f.code.toLowerCase.contains(needle) ||
-          f.originIata.toLowerCase.contains(needle) ||
-          f.destinationIata.toLowerCase.contains(needle) ||
-          f.airlineIcao.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = (page, _) => FlightsApi.list(page = page),
       emptySelectionHint = "Select a flight from the list to see its details. Viewer mode is read-only."

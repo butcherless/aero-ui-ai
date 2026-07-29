@@ -129,24 +129,30 @@ object AirlinesPage {
   ): List[HtmlElement] =
     List(DebouncedFilterInput(filterVar, "Country code (e.g. ES)", MinCountrySearchLength, reload, clearSearch))
 
+  private val columns: List[(String, AirlineDto => String)] = List(
+    "ICAO" -> (_.icao),
+    "Name" -> (_.name),
+    "Alias" -> (a => a.alias.getOrElse("—")),
+    "Callsign" -> (a => a.callsign.getOrElse("—")),
+    "IATA" -> (a => a.iata.getOrElse("—"))
+  )
+
+  private val rowKey: AirlineDto => String = _.icao
+
+  private def matchesSearch(a: AirlineDto, needle: String): Boolean =
+    a.name.toLowerCase.contains(needle) ||
+      a.icao.toLowerCase.contains(needle) ||
+      a.alias.exists(_.toLowerCase.contains(needle)) ||
+      a.iata.exists(_.toLowerCase.contains(needle))
+
   def apply(): HtmlElement = {
     val countryFilterVar = Var("")
     EntityCrudPage[AirlineDto](
       title = "Airlines",
       searchPlaceholder = "Search airline by name (3+ characters)…",
-      columns = List(
-        "ICAO" -> (_.icao),
-        "Name" -> (_.name),
-        "Alias" -> (a => a.alias.getOrElse("—")),
-        "Callsign" -> (a => a.callsign.getOrElse("—")),
-        "IATA" -> (a => a.iata.getOrElse("—"))
-      ),
-      rowKey = _.icao,
-      matchesSearch = (a, needle) =>
-        a.name.toLowerCase.contains(needle) ||
-          a.icao.toLowerCase.contains(needle) ||
-          a.alias.exists(_.toLowerCase.contains(needle)) ||
-          a.iata.exists(_.toLowerCase.contains(needle)),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAirlines(countryFilterVar),
       renderCreateForm = createForm,
@@ -164,19 +170,9 @@ object AirlinesPage {
     EntityCrudPage.readOnly[AirlineDto](
       title = "Airlines",
       searchPlaceholder = "Search airline by name (3+ characters)…",
-      columns = List(
-        "ICAO" -> (_.icao),
-        "Name" -> (_.name),
-        "Alias" -> (a => a.alias.getOrElse("—")),
-        "Callsign" -> (a => a.callsign.getOrElse("—")),
-        "IATA" -> (a => a.iata.getOrElse("—"))
-      ),
-      rowKey = _.icao,
-      matchesSearch = (a, needle) =>
-        a.name.toLowerCase.contains(needle) ||
-          a.icao.toLowerCase.contains(needle) ||
-          a.alias.exists(_.toLowerCase.contains(needle)) ||
-          a.iata.exists(_.toLowerCase.contains(needle)),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAirlines(countryFilterVar),
       emptySelectionHint = "Select an airline from the list to see its details. Viewer mode is read-only.",

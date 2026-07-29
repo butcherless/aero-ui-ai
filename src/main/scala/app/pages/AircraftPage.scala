@@ -13,6 +13,7 @@ import app.models.UpdateAircraftRequest
 import com.raquo.laminar.api.L._
 import org.scalajs.dom
 
+import scala.annotation.unused
 import scala.concurrent.Future
 
 object AircraftPage {
@@ -93,7 +94,7 @@ object AircraftPage {
   private def fetchAircraft(
       registrationVar: Var[String],
       airlineFilterVar: Var[String]
-  )(page: Int, query: String): Future[List[AircraftDto]] = {
+  )(page: Int, @unused query: String): Future[List[AircraftDto]] = {
     val registration = registrationVar.now().trim.toUpperCase
     val airline = airlineFilterVar.now().trim.toUpperCase
     if (registration.nonEmpty) AircraftApi.get(registration).map(List(_)).recover { case _ => Nil }
@@ -132,24 +133,30 @@ object AircraftPage {
     )
   }
 
+  private val columns: List[(String, AircraftDto => String)] = List(
+    "Registration" -> (_.registration),
+    "Type" -> (_.typeCode),
+    "Description" -> (_.description),
+    "Airline" -> (_.airlineIcao)
+  )
+
+  private val rowKey: AircraftDto => String = _.registration
+
+  private def matchesSearch(a: AircraftDto, needle: String): Boolean =
+    a.registration.toLowerCase.contains(needle) ||
+      a.typeCode.toLowerCase.contains(needle) ||
+      a.description.toLowerCase.contains(needle) ||
+      a.airlineIcao.toLowerCase.contains(needle)
+
   def apply(): HtmlElement = {
     val registrationVar = Var("")
     val airlineFilterVar = Var("")
     EntityCrudPage[AircraftDto](
       title = "Aircraft",
       searchPlaceholder = "Search aircraft (registration, type, airline)…",
-      columns = List(
-        "Registration" -> (_.registration),
-        "Type" -> (_.typeCode),
-        "Description" -> (_.description),
-        "Airline" -> (_.airlineIcao)
-      ),
-      rowKey = _.registration,
-      matchesSearch = (a, needle) =>
-        a.registration.toLowerCase.contains(needle) ||
-          a.typeCode.toLowerCase.contains(needle) ||
-          a.description.toLowerCase.contains(needle) ||
-          a.airlineIcao.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
       renderCreateForm = createForm,
@@ -166,18 +173,9 @@ object AircraftPage {
     EntityCrudPage.readOnly[AircraftDto](
       title = "Aircraft",
       searchPlaceholder = "Search aircraft (registration, type, airline)…",
-      columns = List(
-        "Registration" -> (_.registration),
-        "Type" -> (_.typeCode),
-        "Description" -> (_.description),
-        "Airline" -> (_.airlineIcao)
-      ),
-      rowKey = _.registration,
-      matchesSearch = (a, needle) =>
-        a.registration.toLowerCase.contains(needle) ||
-          a.typeCode.toLowerCase.contains(needle) ||
-          a.description.toLowerCase.contains(needle) ||
-          a.airlineIcao.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
       emptySelectionHint = "Select an aircraft from the list to see its details. Viewer mode is read-only.",

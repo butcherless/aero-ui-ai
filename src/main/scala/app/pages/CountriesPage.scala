@@ -74,13 +74,20 @@ object CountriesPage {
   private val MinNameSearchLength = 3
   private def nameFilter(query: String): Option[String] = Option.when(query.trim.nonEmpty)(query.trim)
 
+  private val columns: List[(String, CountryDto => String)] = List("Code" -> (_.code), "Name" -> (_.name))
+
+  private val rowKey: CountryDto => String = _.code
+
+  private def matchesSearch(c: CountryDto, needle: String): Boolean =
+    c.name.toLowerCase.contains(needle) || c.code.toLowerCase.contains(needle)
+
   def apply(): HtmlElement =
     EntityCrudPage[CountryDto](
       title = "Countries",
       searchPlaceholder = "Search country by name (3+ characters)…",
-      columns = List("Code" -> (_.code), "Name" -> (_.name)),
-      rowKey = _.code,
-      matchesSearch = (c, needle) => c.name.toLowerCase.contains(needle) || c.code.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
       renderCreateForm = createForm,
@@ -94,9 +101,9 @@ object CountriesPage {
     EntityCrudPage.readOnly[CountryDto](
       title = "Countries",
       searchPlaceholder = "Search country by name (3+ characters)…",
-      columns = List("Code" -> (_.code), "Name" -> (_.name)),
-      rowKey = _.code,
-      matchesSearch = (c, needle) => c.name.toLowerCase.contains(needle) || c.code.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
       emptySelectionHint = "Select a country from the list to see its details. Viewer mode is read-only.",

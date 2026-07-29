@@ -132,18 +132,25 @@ object AirportsPage {
   ): List[HtmlElement] =
     List(DebouncedFilterInput(filterVar, "Country code (e.g. ES)", MinCountrySearchLength, reload, clearSearch))
 
+  private val columns: List[(String, AirportDto => String)] =
+    List("IATA" -> (_.iata), "ICAO" -> (_.icaoCode), "Name" -> (_.name), "City" -> (_.city))
+
+  private val rowKey: AirportDto => String = _.iata
+
+  private def matchesSearch(a: AirportDto, needle: String): Boolean =
+    a.name.toLowerCase.contains(needle) ||
+      a.city.toLowerCase.contains(needle) ||
+      a.iata.toLowerCase.contains(needle) ||
+      a.icaoCode.toLowerCase.contains(needle)
+
   def apply(): HtmlElement = {
     val countryFilterVar = Var("")
     EntityCrudPage[AirportDto](
       title = "Airports",
       searchPlaceholder = "Search airport by name (3+ characters)…",
-      columns = List("IATA" -> (_.iata), "ICAO" -> (_.icaoCode), "Name" -> (_.name), "City" -> (_.city)),
-      rowKey = _.iata,
-      matchesSearch = (a, needle) =>
-        a.name.toLowerCase.contains(needle) ||
-          a.city.toLowerCase.contains(needle) ||
-          a.iata.toLowerCase.contains(needle) ||
-          a.icaoCode.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAirports(countryFilterVar),
       renderCreateForm = createForm,
@@ -161,13 +168,9 @@ object AirportsPage {
     EntityCrudPage.readOnly[AirportDto](
       title = "Airports",
       searchPlaceholder = "Search airport by name (3+ characters)…",
-      columns = List("IATA" -> (_.iata), "ICAO" -> (_.icaoCode), "Name" -> (_.name), "City" -> (_.city)),
-      rowKey = _.iata,
-      matchesSearch = (a, needle) =>
-        a.name.toLowerCase.contains(needle) ||
-          a.city.toLowerCase.contains(needle) ||
-          a.iata.toLowerCase.contains(needle) ||
-          a.icaoCode.toLowerCase.contains(needle),
+      columns = columns,
+      rowKey = rowKey,
+      matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAirports(countryFilterVar),
       emptySelectionHint = "Select an airport from the list to see its details. Viewer mode is read-only.",
