@@ -31,8 +31,7 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
         sampleData = sampleData,
         fetchPage = fetchPage,
         renderCreateForm = (_, _) => div(),
-        renderEditForm = (_, _, _, _) => div(),
-        emptySelectionHint = "Nothing selected"
+        renderEditForm = (_, _, _, _) => div()
       )
     )
 

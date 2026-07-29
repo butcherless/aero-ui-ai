@@ -35,8 +35,7 @@ class EntityCrudPageSpec extends LaminarMountSpec {
             button("do-save", onClick --> (_ => onSaved(item.copy(name = item.name + " (edited)")))),
             button("do-delete", onClick --> (_ => onDeleted())),
             button("do-cancel-edit", onClick --> (_ => onCancel()))
-          ),
-        emptySelectionHint = "Nothing selected"
+          )
       )
     )
 
@@ -46,9 +45,9 @@ class EntityCrudPageSpec extends LaminarMountSpec {
       case None => fail(s"""No button with text "$label" found""")
     }
 
-  it("shows the empty-selection hint before anything is picked") {
+  it("renders no detail panel before anything is picked") {
     val root = buildPage()
-    root.textContent should include("Nothing selected")
+    root.querySelector(".entity-detail-panel") shouldBe null
   }
 
   it("shows the create form after clicking Add, and adds the created item to the list") {
@@ -58,17 +57,17 @@ class EntityCrudPageSpec extends LaminarMountSpec {
     clickButton(root, "do-create")
 
     root.querySelector("tbody").textContent should include("New Item")
-    // Back to the empty-selection hint after a successful create
-    root.textContent should include("Nothing selected")
+    // Back to no detail panel after a successful create
+    root.querySelector(".entity-detail-panel") shouldBe null
   }
 
-  it("returns to the empty-selection hint when the create form is cancelled") {
+  it("removes the detail panel when the create form is cancelled") {
     val root = buildPage()
 
     clickButton(root, "+ Add")
     clickButton(root, "do-cancel-create")
 
-    root.textContent should include("Nothing selected")
+    root.querySelector(".entity-detail-panel") shouldBe null
     root.querySelector("tbody").textContent shouldBe "No results"
   }
 
@@ -82,7 +81,7 @@ class EntityCrudPageSpec extends LaminarMountSpec {
     clickButton(root, "do-save")
 
     root.querySelector("tbody").textContent should include("New Item (edited)")
-    root.textContent should include("Nothing selected")
+    root.querySelector(".entity-detail-panel") shouldBe null
   }
 
   it("selects a row and removes it from the list on delete") {

@@ -39,7 +39,6 @@ class EntityCrudPageSearchSpec extends LaminarAsyncMountSpec {
         fetchPage = fetchPage,
         renderCreateForm = (_, _) => div(),
         renderEditForm = (_, _, _, _) => div(),
-        emptySelectionHint = "Nothing selected",
         serverSearch = serverSearch,
         debounceMs = 20,
         minSearchLength = minSearchLength

@@ -161,7 +161,6 @@ object AircraftPage {
       fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
       renderCreateForm = createForm,
       renderEditForm = editForm,
-      emptySelectionHint = "Select an aircraft from the list, or click \"Add\".",
       renderExtraToolbar = extraToolbar(registrationVar, airlineFilterVar),
       onSearchFocus = () => { registrationVar.set(""); airlineFilterVar.set("") }
     )
@@ -178,7 +177,6 @@ object AircraftPage {
       matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
-      emptySelectionHint = "Select an aircraft from the list to see its details. Viewer mode is read-only.",
       renderExtraToolbar = extraToolbar(registrationVar, airlineFilterVar),
       onSearchFocus = () => { registrationVar.set(""); airlineFilterVar.set("") }
     )

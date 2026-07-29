@@ -115,13 +115,9 @@ object FlightInstancesPage {
 
     val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
 
-    val detail: Signal[HtmlElement] = selectedVar.signal.map {
-      case None =>
-        div(
-          cls := "detail-placeholder",
-          "Select a flight instance from the list to see its details. This resource is read-only."
-        )
-      case Some(item) => detailView(item)
+    val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map {
+      case None => None
+      case Some(item) => Some(detailView(item))
     }
 
     MasterDetailShell("Flight Instances", toolbar, div(list, pagination), detail).amend(onMountCallback(_ => load(1)))

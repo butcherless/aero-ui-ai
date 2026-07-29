@@ -222,11 +222,10 @@ object RoutesPage {
       error = errorVar.signal
     )
 
-    val detail: Signal[HtmlElement] = detailModeVar.signal.map {
-      case NoSelection =>
-        div(cls := "detail-placeholder", "Search for an airline's routes, select a row, or click \"Add\".")
-      case Creating => createForm(itemsVar, detailModeVar)
-      case Editing(item) => detailView(item, editable = true, onClose = () => detailModeVar.set(NoSelection))
+    val detail: Signal[Option[HtmlElement]] = detailModeVar.signal.map {
+      case NoSelection => None
+      case Creating => Some(createForm(itemsVar, detailModeVar))
+      case Editing(item) => Some(detailView(item, editable = true, onClose = () => detailModeVar.set(NoSelection)))
     }
 
     MasterDetailShell("Routes", toolbar, list, detail)
@@ -259,10 +258,9 @@ object RoutesPage {
       error = errorVar.signal
     )
 
-    val detail: Signal[HtmlElement] = selectedVar.signal.map {
-      case None =>
-        div(cls := "detail-placeholder", "Search for an airline's routes, then select a row. Viewer mode is read-only.")
-      case Some(item) => detailView(item, editable = false, onClose = () => selectedVar.set(None))
+    val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map {
+      case None => None
+      case Some(item) => Some(detailView(item, editable = false, onClose = () => selectedVar.set(None)))
     }
 
     MasterDetailShell("Routes", toolbar, list, detail)

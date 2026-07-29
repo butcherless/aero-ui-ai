@@ -130,8 +130,7 @@ object FlightsPage {
       sampleData = sampleData,
       fetchPage = (page, _) => FlightsApi.list(page = page),
       renderCreateForm = createForm,
-      renderEditForm = editForm,
-      emptySelectionHint = "Select a flight from the list, or click \"Add\"."
+      renderEditForm = editForm
     )
 
   def readOnly(): HtmlElement =
@@ -142,7 +141,6 @@ object FlightsPage {
       rowKey = rowKey,
       matchesSearch = matchesSearch,
       sampleData = sampleData,
-      fetchPage = (page, _) => FlightsApi.list(page = page),
-      emptySelectionHint = "Select a flight from the list to see its details. Viewer mode is read-only."
+      fetchPage = (page, _) => FlightsApi.list(page = page)
     )
 }

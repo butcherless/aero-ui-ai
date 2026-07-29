@@ -92,7 +92,6 @@ object CountriesPage {
       fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
       renderCreateForm = createForm,
       renderEditForm = editForm,
-      emptySelectionHint = "Select a country from the list, or click \"Add\".",
       minSearchLength = MinNameSearchLength,
       serverSearch = true
     )
@@ -106,7 +105,6 @@ object CountriesPage {
       matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
-      emptySelectionHint = "Select a country from the list to see its details. Viewer mode is read-only.",
       minSearchLength = MinNameSearchLength,
       serverSearch = true
     )

@@ -142,7 +142,6 @@ object EntityCrudPage {
       fetchPage: (Int, String) => Future[List[T]],
       renderCreateForm: (T => Unit, () => Unit) => HtmlElement,
       renderEditForm: (T, T => Unit, () => Unit, () => Unit) => HtmlElement,
-      emptySelectionHint: String,
       pageSize: Int = Http.defaultPageSize,
       serverSearch: Boolean = false,
       debounceMs: Int = 350,
@@ -178,28 +177,32 @@ object EntityCrudPage {
 
     val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
 
-    val detail: Signal[HtmlElement] = detailModeVar.signal.map {
+    val detail: Signal[Option[HtmlElement]] = detailModeVar.signal.map {
       case DetailMode.NoSelection =>
-        div(cls := "detail-placeholder", emptySelectionHint)
+        None
 
       case DetailMode.Creating =>
-        renderCreateForm(
-          created => { itemsVar.update(_ :+ created); detailModeVar.set(DetailMode.NoSelection) },
-          () => detailModeVar.set(DetailMode.NoSelection)
+        Some(
+          renderCreateForm(
+            created => { itemsVar.update(_ :+ created); detailModeVar.set(DetailMode.NoSelection) },
+            () => detailModeVar.set(DetailMode.NoSelection)
+          )
         )
 
       case DetailMode.Editing(item) =>
-        renderEditForm(
-          item,
-          updated => {
-            itemsVar.update(_.map(i => if (rowKey(i) == rowKey(item)) updated else i))
-            detailModeVar.set(DetailMode.NoSelection)
-          },
-          () => {
-            itemsVar.update(_.filterNot(i => rowKey(i) == rowKey(item)))
-            detailModeVar.set(DetailMode.NoSelection)
-          },
-          () => detailModeVar.set(DetailMode.NoSelection)
+        Some(
+          renderEditForm(
+            item,
+            updated => {
+              itemsVar.update(_.map(i => if (rowKey(i) == rowKey(item)) updated else i))
+              detailModeVar.set(DetailMode.NoSelection)
+            },
+            () => {
+              itemsVar.update(_.filterNot(i => rowKey(i) == rowKey(item)))
+              detailModeVar.set(DetailMode.NoSelection)
+            },
+            () => detailModeVar.set(DetailMode.NoSelection)
+          )
         )
     }
 
@@ -220,7 +223,6 @@ object EntityCrudPage {
       matchesSearch: (T, String) => Boolean,
       sampleData: List[T],
       fetchPage: (Int, String) => Future[List[T]],
-      emptySelectionHint: String,
       pageSize: Int = Http.defaultPageSize,
       serverSearch: Boolean = false,
       debounceMs: Int = 350,
@@ -252,15 +254,17 @@ object EntityCrudPage {
 
     val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
 
-    val detail: Signal[HtmlElement] = selectedVar.signal.map {
+    val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map {
       case None =>
-        div(cls := "detail-placeholder", emptySelectionHint)
+        None
       case Some(item) =>
-        div(
-          cls := "detail-form",
-          div(cls := "detail-heading", title),
-          columns.map { case (label, extract) => FormField.readOnly(label, extract(item)) },
-          FormActions.close(() => selectedVar.set(None))
+        Some(
+          div(
+            cls := "detail-form",
+            div(cls := "detail-heading", title),
+            columns.map { case (label, extract) => FormField.readOnly(label, extract(item)) },
+            FormActions.close(() => selectedVar.set(None))
+          )
         )
     }
 
