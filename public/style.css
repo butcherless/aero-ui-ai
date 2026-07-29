@@ -225,6 +225,7 @@ body {
 .entity-detail-panel {
   flex: 2;
   min-width: 280px;
+  margin-top: 84px; /* aligns the panel's top edge with the first row of the list, below the toolbar + table header */
   background: #1a1d24;
   border: 1px solid #262a33;
   border-radius: 10px;
