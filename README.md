@@ -10,21 +10,27 @@ Aviation admin panel (reactive SPA) built with **Scala 3 + Scala.js + Laminar**,
 build.sbt                              # dependencies and Scala.js config
 project/                               # sbt-scalajs plugin + sbt version
 src/main/scala/app/
-  App.scala                            # entry point
+  App.scala                            # entry point; gates the whole UI on Session.isAuthenticated
   router/AppRouter.scala                # lightweight History API-based routing (no external deps)
-  components/Layout.scala               # overall layout (sidebar + content)
+  auth/Session.scala                    # client-side session (token/expiry/username), persisted to localStorage
+  components/Layout.scala               # overall layout (sidebar + top bar + content)
   components/Sidebar.scala              # entity navigation
+  components/TopBar.scala               # logged-in user, Disconnect button, exact-code quick lookup
   components/MasterDetailShell.scala    # shared list + detail-panel page shell
-  components/EntityCrudPage.scala       # generic list/search/select/create/edit page shell (built on the two below)
+  components/EntityCrudPage.scala       # generic list/search/select/create/edit page shell (built on the two below),
+                                         #   plus its readOnly() counterpart for the /view/... preview pages
   components/EntityTable.scala          # generic searchable/selectable list table
   components/Pagination.scala           # Previous/Page N/Next bar for paginated lists
   components/FormField.scala            # label+input building blocks for detail/create forms
   components/FormActions.scala          # shared Save/Delete/Cancel/Close button rows
   components/AsyncAction.scala          # shared "run a Future, track saving/error state" helper
-  api/Http.scala                        # fetch + upickle JSON client wrapper
+  components/DebouncedFilterInput.scala # shared secondary-filter box (e.g. Airports'/Airlines' country filter)
+  api/Http.scala                        # fetch + upickle JSON client wrapper; attaches the bearer token,
+                                         #   handles 401 -> clear session + redirect to login
+  api/AuthApi.scala                     # login/logout
   api/*Api.scala                        # one thin API module per entity
   models/Dtos.scala                     # case classes matching the OpenAPI schemas
-  pages/*Page.scala                     # one master-detail page per entity
+  pages/*Page.scala                     # one master-detail page per entity, plus LoginPage and ProfilePage
 public/style.css                        # base styles
 index.html                              # served by Vite
 src/test/scala/app/
@@ -32,9 +38,13 @@ src/test/scala/app/
   models/DtosSpec.scala                 # JSON round-trip / Option-handling tests
   api/HttpSpec.scala                    # pure query-string helper tests
   components/*Spec.scala                # component + EntityCrudPage state-machine tests
+  auth/SessionSpec.scala                 # session load/store/expiry tests
+  router/AppRouterSpec.scala             # path <-> Page mapping tests
 ```
 
 Each entity page (Countries, Airports, Airlines, Aircraft, Flights, Flight Instances, Routes) tries the real backend first and falls back to sample data with a visible banner if it's unreachable, so the UI is fully demoable without a live backend. List pages fetch 20 items per page with Previous/Next pagination.
+
+The whole app sits behind login. The backend has no roles/permissions module yet, so every logged-in user gets full CRUD; the read-only pages under `/view/...` (linked from Profile) exist only as a preview of a future restricted "Viewer" role, not as real access control.
 
 The backend itself has no CORS support, so `vite.config.js` proxies `/api` requests to `http://localhost:8080` and the app talks to that proxy (same-origin) rather than the backend directly — see "Running in development" below.
 
