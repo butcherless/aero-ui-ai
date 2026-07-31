@@ -8,16 +8,20 @@ import app.components.EntityTable
 import app.components.FormActions
 import app.components.FormField
 import app.components.MasterDetailShell
+import app.components.Pagination
 import app.models.AirlineDto
 import app.models.CreateRouteRequest
 import app.models.RouteDto
 import com.raquo.laminar.api.L._
+import org.scalajs.dom
 
 import scala.util.Failure
 import scala.util.Success
 
-/** Routes have no list-all/get-by-key/update/delete endpoints, so this page browses routes by the airline operating
-  * them, and manages airline<->route associations in the detail panel.
+/** Routes have no get-by-key/update/delete endpoints for the route entity itself, so this page is hand-rolled (like
+  * `FlightInstancesPage`) rather than built on `EntityCrudPage`: real pagination over `RoutesApi.list`, with two
+  * independent, combinable origin/destination filters — unlike Airports' mutually-exclusive name/country filters, the
+  * routes endpoint supports both at once — plus managing airline<->route associations in the detail panel.
   */
 object RoutesPage {
 
@@ -28,46 +32,105 @@ object RoutesPage {
 
   private def rowKey(r: RouteDto): String = s"${r.originIata}-${r.destinationIata}"
 
-  private val InvalidIcaoMessage = "Enter a 3-letter airline ICAO code (e.g. AEA)."
-  private val SearchPlaceholder = "View an airline's routes (ICAO, e.g. AEA)…"
+  private val InvalidIataMessage = "Enter a 3-letter IATA code (e.g. MAD), or leave blank."
+  private val OriginPlaceholder = "Origin (IATA, e.g. MAD)…"
+  private val DestinationPlaceholder = "Destination (IATA, e.g. TFN)…"
 
-  // The browse-by-airline-ICAO search state is identical for the editable and read-only variants — they only differ
-  // in what the detail panel lets you do with a selected route, not in how the list itself is searched/loaded.
+  // The origin/destination browse-and-search state is identical for the editable and read-only variants — they only
+  // differ in what the detail panel lets you do with a selected route, not in how the list itself is searched/paged.
   private final case class BrowseState(
       itemsVar: Var[List[RouteDto]],
       loadingVar: Var[Boolean],
       errorVar: Var[Option[String]],
-      queryIcaoVar: Var[String],
-      search: () => Unit
+      originVar: Var[String],
+      destinationVar: Var[String],
+      pageVar: Var[Int],
+      hasNextVar: Var[Boolean],
+      search: () => Unit,
+      goToPrevPage: () => Unit,
+      goToNextPage: () => Unit,
+      loadInitial: () => Unit
   )
 
   private def buildBrowseState(): BrowseState = {
     val itemsVar = Var(List.empty[RouteDto])
-    val loadingVar = Var(false)
+    val loadingVar = Var(true)
     val errorVar = Var(Option.empty[String])
-    val queryIcaoVar = Var("")
+    val originVar = Var("")
+    val destinationVar = Var("")
+    val pageVar = Var(1)
+    val hasNextVar = Var(false)
 
-    def search(): Unit = {
-      val icao = queryIcaoVar.now().trim.toUpperCase
-      if (icao.length != 3) {
-        errorVar.set(Some(InvalidIcaoMessage))
-      } else {
-        loadingVar.set(true)
-        errorVar.set(None)
-        RoutesApi.byAirline(icao).onComplete {
-          case Success(list) =>
-            loadingVar.set(false)
-            itemsVar.set(list)
-          case Failure(ex) =>
-            val failure = Http.loadFailure(ex)
-            loadingVar.set(false)
-            errorVar.set(Some(failure.message))
-            itemsVar.set(if (failure.useSampleData) sampleData else Nil)
-        }
+    // Last-searched filters, distinct from the live text-box Vars above — mirrors EntityCrudPage's own
+    // searchVar-vs-activeQueryVar split, so Prev/Next re-fetch what was actually searched rather than whatever's
+    // currently sitting unsearched in the boxes.
+    val appliedVar = Var((Option.empty[String], Option.empty[String]))
+
+    def validated(raw: String): Either[String, Option[String]] = {
+      val trimmed = raw.trim.toUpperCase
+      if (trimmed.isEmpty) Right(None)
+      else if (trimmed.length == 3) Right(Some(trimmed))
+      else Left(InvalidIataMessage)
+    }
+
+    def load(page: Int, origin: Option[String], destination: Option[String]): Unit = {
+      loadingVar.set(true)
+      errorVar.set(None)
+      RoutesApi.list(origin, destination, page).onComplete {
+        case Success(list) =>
+          loadingVar.set(false)
+          pageVar.set(page)
+          hasNextVar.set(list.size >= Http.defaultPageSize)
+          itemsVar.set(list)
+        case Failure(ex) =>
+          val failure = Http.loadFailure(ex)
+          loadingVar.set(false)
+          errorVar.set(Some(failure.message))
+          pageVar.set(page)
+          hasNextVar.set(false)
+          itemsVar.set(if (failure.useSampleData) sampleData else Nil)
       }
     }
 
-    BrowseState(itemsVar, loadingVar, errorVar, queryIcaoVar, search)
+    def search(): Unit =
+      (validated(originVar.now()), validated(destinationVar.now())) match {
+        case (Right(o), Right(d)) =>
+          appliedVar.set((o, d))
+          load(1, o, d)
+        case (Left(msg), _) => errorVar.set(Some(msg))
+        case (_, Left(msg)) => errorVar.set(Some(msg))
+      }
+
+    def goToPrevPage(): Unit =
+      if (pageVar.now() > 1) {
+        val (o, d) = appliedVar.now()
+        load(pageVar.now() - 1, o, d)
+      }
+
+    def goToNextPage(): Unit =
+      if (hasNextVar.now()) {
+        val (o, d) = appliedVar.now()
+        load(pageVar.now() + 1, o, d)
+      }
+
+    def loadInitial(): Unit = {
+      appliedVar.set((None, None))
+      load(1, None, None)
+    }
+
+    BrowseState(
+      itemsVar,
+      loadingVar,
+      errorVar,
+      originVar,
+      destinationVar,
+      pageVar,
+      hasNextVar,
+      search,
+      goToPrevPage,
+      goToNextPage,
+      loadInitial
+    )
   }
 
   // `editable` toggles the associate-a-new-airline input and the per-chip ✕ remove button; the read-only variant
@@ -198,6 +261,22 @@ object RoutesPage {
     )
   }
 
+  private def filterInputs(originVar: Var[String], destinationVar: Var[String], search: () => Unit): List[HtmlElement] =
+    List(
+      input(
+        cls := "search-input",
+        placeholder := OriginPlaceholder,
+        controlled(value <-- originVar.signal, onInput.mapToValue --> originVar.writer),
+        onKeyDown.filter(_.key == "Enter") --> Observer[dom.KeyboardEvent](_ => search())
+      ),
+      input(
+        cls := "search-input",
+        placeholder := DestinationPlaceholder,
+        controlled(value <-- destinationVar.signal, onInput.mapToValue --> destinationVar.writer),
+        onKeyDown.filter(_.key == "Enter") --> Observer[dom.KeyboardEvent](_ => search())
+      )
+    )
+
   def apply(): HtmlElement = {
     val state = buildBrowseState()
     import state._
@@ -206,11 +285,7 @@ object RoutesPage {
 
     val toolbar = div(
       cls := "entity-toolbar",
-      input(
-        cls := "search-input",
-        placeholder := SearchPlaceholder,
-        controlled(value <-- queryIcaoVar.signal, onInput.mapToValue --> queryIcaoVar.writer)
-      ),
+      filterInputs(originVar, destinationVar, search),
       button(cls := "btn btn-secondary", "Search", onClick --> (_ => search())),
       button(cls := "btn btn-add", "+ Add", onClick --> (_ => detailModeVar.set(Creating)))
     )
@@ -223,17 +298,19 @@ object RoutesPage {
       error = errorVar.signal
     )
 
+    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
+
     val detail: Signal[Option[HtmlElement]] = detailModeVar.signal.map {
       case NoSelection => None
       case Creating => Some(createForm(itemsVar, detailModeVar))
       case Editing(item) => Some(detailView(item, editable = true, onClose = () => detailModeVar.set(NoSelection)))
     }
 
-    MasterDetailShell("Routes", toolbar, list, detail)
+    MasterDetailShell("Routes", toolbar, div(list, pagination), detail).amend(onMountCallback(_ => loadInitial()))
   }
 
-  /** Read-only counterpart to `apply`: same browse-by-airline search, no "+ Add" button, and the airlines subsection is
-    * shown without the associate/disassociate controls.
+  /** Read-only counterpart to `apply`: same origin/destination search and pagination, no "+ Add" button, and the
+    * airlines subsection is shown without the associate/disassociate controls.
     */
   def readOnly(): HtmlElement = {
     val state = buildBrowseState()
@@ -243,11 +320,7 @@ object RoutesPage {
 
     val toolbar = div(
       cls := "entity-toolbar",
-      input(
-        cls := "search-input",
-        placeholder := SearchPlaceholder,
-        controlled(value <-- queryIcaoVar.signal, onInput.mapToValue --> queryIcaoVar.writer)
-      ),
+      filterInputs(originVar, destinationVar, search),
       button(cls := "btn btn-secondary", "Search", onClick --> (_ => search()))
     )
 
@@ -259,11 +332,13 @@ object RoutesPage {
       error = errorVar.signal
     )
 
+    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
+
     val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map {
       case None => None
       case Some(item) => Some(detailView(item, editable = false, onClose = () => selectedVar.set(None)))
     }
 
-    MasterDetailShell("Routes", toolbar, list, detail)
+    MasterDetailShell("Routes", toolbar, div(list, pagination), detail).amend(onMountCallback(_ => loadInitial()))
   }
 }

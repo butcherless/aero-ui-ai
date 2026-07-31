@@ -4,13 +4,22 @@ import app.models._
 
 import scala.concurrent.Future
 
-/** Routes have no list-all/get-by-key/update/delete endpoints; they're identified by (originIata, destinationIata) and
-  * browsed here by the airline operating them.
+/** Routes are identified by (originIata, destinationIata); `list` supports an optional exact-3-letter `origin`/
+  * `destination` filter, independently or combined — combining both returns at most one match, still as a list, empty
+  * if that pair doesn't exist. There's still no get-by-key/update/delete for the route entity itself, only create, this
+  * list/search endpoint, and the airline-association sub-resource endpoints.
   */
 object RoutesApi {
 
-  def byAirline(icao: String): Future[List[RouteDto]] =
-    Http.getJsonList[RouteDto](s"/api/v1/airlines/$icao/routes" + Http.query("pageSize" -> Some("100")))
+  def list(origin: Option[String] = None, destination: Option[String] = None, page: Int = 1): Future[List[RouteDto]] =
+    Http.getJsonList[RouteDto](
+      "/api/v1/routes" + Http.query(
+        "origin" -> origin,
+        "destination" -> destination,
+        "page" -> Some(page.toString),
+        "pageSize" -> Some(Http.defaultPageSize.toString)
+      )
+    )
 
   def create(req: CreateRouteRequest): Future[RouteDto] =
     Http.postJson[CreateRouteRequest, RouteDto](s"/api/v1/routes", req)
