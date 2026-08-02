@@ -119,7 +119,13 @@ case class FlightInstanceDto(
 
 // -- Routes (no list-all/get/update/delete endpoints; identified by origin+destination) --
 
-case class RouteDto(originIata: String, destinationIata: String, distanceKm: Int) derives ReadWriter
+case class RouteDto(
+    originIata: String,
+    destinationIata: String,
+    distanceKm: Int,
+    originAirportName: Option[String] = None,
+    destinationAirportName: Option[String] = None
+) derives ReadWriter
 case class CreateRouteRequest(originIata: String, destinationIata: String, distanceKm: Int) derives ReadWriter
 
 // -- Auth --

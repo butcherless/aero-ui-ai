@@ -114,5 +114,18 @@ class DtosSpec extends AnyFunSpec with Matchers {
       val route = RouteDto("MAD", "TFN", 1740)
       read[RouteDto](write(route)) shouldBe route
     }
+
+    it("round-trips with origin/destination airport names present") {
+      val route =
+        RouteDto("MAD", "TFN", 1740, Some("Adolfo Suárez Madrid–Barajas Airport"), Some("Tenerife North Airport"))
+      read[RouteDto](write(route)) shouldBe route
+    }
+
+    it("parses a response that omits the airport name fields as None") {
+      // POST /api/v1/routes and GET /api/v1/airlines/{icao}/routes reuse RouteDto but never
+      // populate originAirportName/destinationAirportName — only the list/search endpoint does.
+      val json = """{"originIata":"MAD","destinationIata":"TFN","distanceKm":1740}"""
+      read[RouteDto](json) shouldBe RouteDto("MAD", "TFN", 1740, None, None)
+    }
   }
 }

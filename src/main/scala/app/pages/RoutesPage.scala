@@ -215,7 +215,9 @@ object RoutesPage {
     EntityTable[RouteDto](
       columns = List(
         "Origin" -> (_.originIata),
+        "Origin Airport" -> (_.originAirportName.getOrElse("—")),
         "Destination" -> (_.destinationIata),
+        "Destination Airport" -> (_.destinationAirportName.getOrElse("—")),
         "Distance (km)" -> (_.distanceKm.toString)
       ),
       rows = rows,
