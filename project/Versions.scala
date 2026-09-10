@@ -1,5 +1,5 @@
 object Versions {
-  val scala3 = "3.3.8" // LTS
+  val scala3 = "3.9.0" // LTS
 
   // Runtime
   val laminar    = "17.2.1"
