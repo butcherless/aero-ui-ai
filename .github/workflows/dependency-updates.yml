@@ -1,0 +1,112 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 15 * * 5'  # every Friday  at 15:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    env:
+      SBT_OPTS: "-Xmx2g"
+      GH_TOKEN: ${{ github.token }}   # for the `gh api` calls in the SBT/scalafmt and Actions steps
+
+    # An explicit `shell: bash` adds pipefail, which the default shell doesn't. Without it, the
+    # `| tee` in each step hides a failing check and the step still passes.
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Setup JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'zulu'
+          java-version: '21'
+          cache: sbt
+      - name: Setup SBT
+        uses: sbt/setup-sbt@v1
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Install npm dependencies
+        run: npm ci
+      - name: Report library dependency updates
+        run: |
+          {
+            echo '## Library dependencies'
+            echo '```'
+            sbt -no-colors xdup
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Report npm dependency updates
+        # `npm outdated` and `npm audit` exit non-zero when they have something to report, which
+        # is a result here, not a failure.
+        run: |
+          {
+            echo '## npm dependencies'
+            echo '```'
+            npm outdated || true
+            npm audit || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Report SBT plugin updates
+        # scalajs-env-jsdom-nodejs is a plain libraryDependencies entry in plugins.sbt, so neither
+        # `sbt xdup` nor the plugin script sees it.
+        run: |
+          jsdom_env_latest="$(curl -fsS https://repo1.maven.org/maven2/org/scala-js/scalajs-env-jsdom-nodejs_2.12/maven-metadata.xml | sed -n 's|.*<release>\(.*\)</release>.*|\1|p')"
+          {
+            echo '## SBT plugins'
+            echo '```'
+            python3 scripts/check_plugin_updates.py
+            echo '```'
+            echo '## scalajs-env-jsdom-nodejs'
+            echo '```'
+            echo "current: $(grep scalajs-env-jsdom-nodejs project/plugins.sbt)"
+            echo "latest:  $jsdom_env_latest"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Report SBT / scalafmt formatter versions
+        # Not covered by `sbt xdup` (that's the main build's dependencies only). The SBT query
+        # filters to the v1.x line because sbt/sbt's own /releases/latest now points at 2.x. The
+        # versions are fetched first because a failure inside `echo "$(...)"` wouldn't fail the step.
+        run: |
+          sbt_latest="$(gh api 'repos/sbt/sbt/releases?per_page=30' --jq '[.[] | select(.prerelease | not) | .tag_name | select(startswith("v1."))] | first')"
+          scalafmt_latest="$(gh api repos/scalameta/scalafmt/releases/latest --jq .tag_name)"
+          {
+            echo '## SBT itself'
+            echo '```'
+            echo "current: $(grep sbt.version project/build.properties)"
+            echo "latest:  $sbt_latest"
+            echo '```'
+            echo '## scalafmt formatter'
+            echo '```'
+            echo "current: $(grep '^version' .scalafmt.conf)"
+            echo "latest:  $scalafmt_latest"
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Report GitHub Actions updates
+        run: |
+          {
+            echo '## GitHub Actions'
+            echo '```'
+            python3 scripts/check_actions_updates.py
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

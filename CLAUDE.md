@@ -47,6 +47,8 @@ sbt scalafmtCheckAll "scalafixAll --check"   # CI-style check, no changes
 
 CI (`.github/workflows/ci.yml`) runs on every push/PR to `main`: format/lint check, `sbt test`, `sbt fullLinkJS`, then `npm run build`. Its action pins and hardening (actions on floating major tags, `permissions`, `concurrency`, `sbt/setup-sbt`) mirror the sibling `aero-hex-ai` backend's own workflow conventions.
 
+`.github/workflows/dependency-updates.yml` reports outdated dependencies every Friday at 15:00 UTC, or on a manual trigger. It only reports and changes nothing. It covers sbt libraries and plugins, npm packages, sbt, scalafmt and GitHub Actions, using `scripts/check_plugin_updates.py` and `scripts/check_actions_updates.py`, which are copies of the scripts in `aero-hex-ai`'s `bump-versions` skill.
+
 ## Architecture
 
 **Layering**, bottom to top:
