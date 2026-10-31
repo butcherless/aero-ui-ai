@@ -45,7 +45,7 @@ sbt scalafmtCheckAll "scalafixAll --check"   # CI-style check, no changes
 
 **Always run `sbt scalafmtAll scalafixAll` and commit the result before pushing** — CI runs the check-only form (`scalafmtCheckAll "scalafixAll --check"`) and fails the build on any diff.
 
-CI (`.github/workflows/ci.yml`) runs on every push/PR to `main`: format/lint check, `sbt test`, `sbt fullLinkJS`, then `npm run build`. Its action pins and hardening (SHA-pinned actions, `permissions`, `concurrency`, `sbt/setup-sbt`) mirror the sibling `aero-hex-ai` backend's own workflow conventions.
+CI (`.github/workflows/ci.yml`) runs on every push/PR to `main`: format/lint check, `sbt test`, `sbt fullLinkJS`, then `npm run build`. Its action pins and hardening (actions on floating major tags, `permissions`, `concurrency`, `sbt/setup-sbt`) mirror the sibling `aero-hex-ai` backend's own workflow conventions.
 
 ## Architecture
 
