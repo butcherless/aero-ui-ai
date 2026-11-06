@@ -1,7 +1,7 @@
 package app.components
 
 import app.testkit.LaminarMountSpec
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 import scala.concurrent.Promise

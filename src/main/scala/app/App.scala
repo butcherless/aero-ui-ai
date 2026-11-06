@@ -2,10 +2,10 @@ package app
 
 import app.auth.Session
 import app.components.Layout
-import app.pages._
+import app.pages.*
 import app.router.AppRouter
 import app.router.Page
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 object App {

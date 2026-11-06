@@ -12,7 +12,7 @@ import app.components.Pagination
 import app.models.AirlineDto
 import app.models.CreateRouteRequest
 import app.models.RouteDto
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 import scala.util.Failure
@@ -281,7 +281,7 @@ object RoutesPage {
 
   def apply(): HtmlElement = {
     val state = buildBrowseState()
-    import state._
+    import state.*
 
     val detailModeVar = Var[DetailMode](NoSelection)
 
@@ -316,7 +316,7 @@ object RoutesPage {
     */
   def readOnly(): HtmlElement = {
     val state = buildBrowseState()
-    import state._
+    import state.*
 
     val selectedVar = Var(Option.empty[RouteDto])
 

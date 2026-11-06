@@ -1,6 +1,6 @@
 package app.api
 
-import app.models._
+import app.models.*
 
 import scala.concurrent.Future
 

@@ -1,6 +1,6 @@
 package app.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 /** Generic searchable-list table shared by every entity page: a header row, a data row per item with a click handler,
   * and a highlighted row for whatever is currently selected.

@@ -1,6 +1,6 @@
 package app.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.Future

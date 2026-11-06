@@ -2,7 +2,7 @@ package app.components
 
 import app.api.Http
 import app.api.Http.given
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 import scala.concurrent.Future
@@ -152,7 +152,7 @@ object EntityCrudPage {
   ): HtmlElement = {
 
     val state = buildLoadState(fetchPage, matchesSearch, sampleData, pageSize, serverSearch, minSearchLength)
-    import state._
+    import state.*
 
     val detailModeVar = Var[DetailMode[T]](DetailMode.NoSelection)
 
@@ -233,7 +233,7 @@ object EntityCrudPage {
   ): HtmlElement = {
 
     val state = buildLoadState(fetchPage, matchesSearch, sampleData, pageSize, serverSearch, minSearchLength)
-    import state._
+    import state.*
 
     val selectedVar = Var(Option.empty[T])
 

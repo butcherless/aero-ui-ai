@@ -9,7 +9,7 @@ import app.components.FormField
 import app.models.CreateFlightRequest
 import app.models.FlightDto
 import app.models.UpdateFlightRequest
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 object FlightsPage {
 

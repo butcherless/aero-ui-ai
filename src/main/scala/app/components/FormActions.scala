@@ -1,6 +1,6 @@
 package app.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 /** Shared button rows for entity detail/create forms, so the labels and CSS classes for Save/Delete/Cancel/Close live
   * in one place instead of being retyped per entity page.

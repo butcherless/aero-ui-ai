@@ -4,7 +4,7 @@ import app.auth.Session
 import app.components.TopBar
 import app.router.AppRouter
 import app.router.Page
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 /** Profile page: shows the logged-in user's identity, and links out to the read-only "Viewer" preview of every entity,
   * since the backend's roles/permissions module hasn't been implemented — anyone with a valid token sees everything, so

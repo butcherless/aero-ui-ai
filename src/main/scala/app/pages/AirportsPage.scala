@@ -11,7 +11,7 @@ import app.components.FormField
 import app.models.AirportDto
 import app.models.CreateAirportRequest
 import app.models.UpdateAirportRequest
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 import scala.concurrent.Future
 import scala.util.Failure

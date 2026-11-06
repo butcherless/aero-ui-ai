@@ -2,7 +2,7 @@ package app.models
 
 import org.scalatest.funspec.AnyFunSpec
 import org.scalatest.matchers.should.Matchers
-import upickle.default._
+import upickle.default.*
 
 class DtosSpec extends AnyFunSpec with Matchers {
 

@@ -1,6 +1,6 @@
 package app.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 /** Prev/page-number/Next bar for paginated lists. The backend's list responses carry no total count, so `hasNext` is a
   * heuristic supplied by the caller (typically: the last fetch returned a full page).

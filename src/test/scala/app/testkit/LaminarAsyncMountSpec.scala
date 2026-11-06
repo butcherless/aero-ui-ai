@@ -1,7 +1,7 @@
 package app.testkit
 
 import com.raquo.domtestutils.scalatest.AsyncMountSpec
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 import org.scalatest.funspec.AsyncFunSpec
 import org.scalatest.matchers.should.Matchers

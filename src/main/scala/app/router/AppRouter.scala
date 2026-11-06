@@ -1,6 +1,6 @@
 package app.router
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 /** The set of pages the dashboard can show. Add a case here for every new page. */
@@ -65,7 +65,7 @@ object Page {
   * [[https://github.com/raquo/Waypoint Waypoint]] once you need route params, query strings, etc.
   */
 object AppRouter {
-  import Page._
+  import Page.*
 
   val pageVar: Var[Page] = Var(fromPath(dom.window.location.pathname))
   val currentPageSignal: Signal[Page] = pageVar.signal

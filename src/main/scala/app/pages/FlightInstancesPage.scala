@@ -9,7 +9,7 @@ import app.components.FormField
 import app.components.MasterDetailShell
 import app.components.Pagination
 import app.models.FlightInstanceDto
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 import scala.util.Failure
 import scala.util.Success

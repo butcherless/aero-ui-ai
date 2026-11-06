@@ -1,5 +1,5 @@
 package app.components
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalatest.funspec.AsyncFunSpec
 import org.scalatest.matchers.should.Matchers
 

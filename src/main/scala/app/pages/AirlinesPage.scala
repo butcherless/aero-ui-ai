@@ -11,7 +11,7 @@ import app.components.FormField
 import app.models.AirlineDto
 import app.models.CreateAirlineRequest
 import app.models.UpdateAirlineRequest
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 import scala.concurrent.Future
 

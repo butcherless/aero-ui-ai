@@ -2,7 +2,7 @@ package app.components
 
 import app.router.AppRouter
 import app.router.Page
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 object Sidebar {
 

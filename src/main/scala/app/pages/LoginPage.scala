@@ -8,7 +8,7 @@ import app.components.FormField
 import app.models.LoginRequest
 import app.router.AppRouter
 import app.router.Page
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 import scala.util.Failure

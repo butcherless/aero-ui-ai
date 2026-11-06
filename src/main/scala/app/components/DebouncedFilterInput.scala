@@ -1,6 +1,6 @@
 package app.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 /** A single search-input box that auto-fires `reload` after `debounceMs` of no typing, once the trimmed value reaches

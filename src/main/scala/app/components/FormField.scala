@@ -1,6 +1,6 @@
 package app.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 /** Small label+input building blocks shared by every entity's detail/create form. */
 object FormField {

@@ -10,7 +10,7 @@ import app.components.FormField
 import app.models.AircraftDto
 import app.models.CreateAircraftRequest
 import app.models.UpdateAircraftRequest
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 import scala.annotation.unused

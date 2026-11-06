@@ -1,7 +1,7 @@
 package app.auth
 
 import app.models.LoginResponse
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 import upickle.default.ReadWriter
 import upickle.default.read

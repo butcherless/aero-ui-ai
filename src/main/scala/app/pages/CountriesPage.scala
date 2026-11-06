@@ -9,7 +9,7 @@ import app.components.FormField
 import app.models.CountryDto
 import app.models.CreateCountryRequest
 import app.models.UpdateCountryRequest
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 object CountriesPage {
 

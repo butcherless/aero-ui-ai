@@ -1,6 +1,6 @@
 package app.components
 
-import com.raquo.laminar.api.L._
+import com.raquo.laminar.api.L.*
 
 /** The Boceto 1 layout: page title, a center list panel (toolbar + table) and a right-hand detail/edit panel that swaps
   * content based on the current selection. The detail panel itself is only mounted while `detail` is `Some` — nothing
