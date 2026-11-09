@@ -3,13 +3,16 @@
 workflows and composite actions.
 
 Actions here are pinned to a floating major-version tag (`owner/repo@vN`), matching
-the repo convention. This script never rewrites files; it only reports current vs.
-latest so applying a bump is a one-line tag edit (in every file that references the
-action).
+the repo convention — `.github/dependabot.yml`'s weekly `github-actions` update is
+what keeps them current; this script is the on-demand single-pass equivalent. It
+never rewrites files; it only reports current vs. latest so applying a bump is a
+one-line tag edit (in every file that references the action).
 
 GitHub is queried via `gh api` (authenticated: 5000 req/hr, and no token handling
-here). `gh` must be logged in (`gh auth status`); if it isn't, every lookup returns
-"unknown".
+here) — same convention as the bump-versions skill's inline checks. `gh` must be
+logged in (`gh auth status`); the script checks that first and exits non-zero if not.
+It also exits non-zero if any action's lookup failed, so a broken check can't pass as
+"up to date".
 """
 import json
 import re
@@ -72,6 +75,11 @@ def find_refs(root: Path) -> dict:
 
 
 def main() -> None:
+    auth = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True, timeout=20)
+    if auth.returncode != 0:
+        print("`gh` is not logged in (`gh auth status` failed) — can't query GitHub.", file=sys.stderr)
+        sys.exit(1)
+
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
     refs = find_refs(root)
     if not refs:
@@ -79,12 +87,14 @@ def main() -> None:
         sys.exit(1)
 
     print(f"{'ACTION':<28} {'CURRENT':<12} {'LATEST':<12} NOTE")
+    failed = 0
     for repo, used in sorted(refs.items()):
         current_refs = sorted(used)
         current = ", ".join(current_refs)
         latest = latest_tag(repo)
         if latest is None:
-            print(f"{repo:<28} {current:<12} {'unknown':<12} <-- no releases/tags found, check manually")
+            failed += 1
+            print(f"{repo:<28} {current:<12} {'?':<12} <-- lookup failed (no releases/tags, or API error)")
             continue
 
         marker = ""
@@ -102,6 +112,10 @@ def main() -> None:
             for ref in current_refs:
                 for loc in used[ref]:
                     print(f"    used in: {loc}")
+
+    if failed:
+        print(f"{failed} action lookup(s) failed — results are incomplete.", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
