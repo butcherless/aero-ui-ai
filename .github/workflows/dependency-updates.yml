@@ -41,6 +41,10 @@ jobs:
           cache: sbt
       - name: Setup SBT
         uses: sbt/setup-sbt@67d461eba2c4753196c230e02da850757ba4775e # v1.5.14
+        with:
+          # Its disk cache is for sbt 2.x; on this build's sbt 1.x the folder never exists, and the
+          # post step only warns that it has nothing to save.
+          disk-cache: false
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
