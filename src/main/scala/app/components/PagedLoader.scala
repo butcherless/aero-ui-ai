@@ -7,6 +7,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
+import scala.util.Try
 
 /** Paginated list loading shared by every list page: fetches one page for a query, tracks loading/error state, and on
   * failure falls back to sample data only when the backend was unreachable (see `Http.loadFailure`). The backend sends
@@ -34,23 +35,33 @@ final class PagedLoader[Q, T](
 
   def activeQuery: Q = activeQueryVar.now()
 
+  // Only the most recent load may update the state. Without this, a slow response to an earlier request (an older
+  // debounced search, or a double click on Next) arriving after a newer one would overwrite its results and page number.
+  private var latestRequestId = 0
+
   def load(page: Int, query: Q): Unit = {
+    latestRequestId += 1
+    val requestId = latestRequestId
     loadingVar.set(true)
     errorVar.set(None)
     fetchPage(page, query).onComplete { result =>
-      loadingVar.set(false)
-      pageVar.set(page)
-      activeQueryVar.set(query)
-      result match {
-        case Success(list) =>
-          hasNextVar.set(list.size >= pageSize)
-          itemsVar.set(list)
-        case Failure(ex) =>
-          val failure = Http.loadFailure(ex)
-          errorVar.set(Some(failure.message))
-          hasNextVar.set(false)
-          itemsVar.set(if (failure.useSampleData) sampleData else Nil)
-      }
+      if (requestId == latestRequestId) applyResult(page, query, result)
+    }
+  }
+
+  private def applyResult(page: Int, query: Q, result: Try[List[T]]): Unit = {
+    loadingVar.set(false)
+    pageVar.set(page)
+    activeQueryVar.set(query)
+    result match {
+      case Success(list) =>
+        hasNextVar.set(list.size >= pageSize)
+        itemsVar.set(list)
+      case Failure(ex) =>
+        val failure = Http.loadFailure(ex)
+        errorVar.set(Some(failure.message))
+        hasNextVar.set(false)
+        itemsVar.set(if (failure.useSampleData) sampleData else Nil)
     }
   }
 
