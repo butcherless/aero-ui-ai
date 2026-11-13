@@ -39,7 +39,7 @@ jobs:
           cache: 'sbt'
 
       - name: Setup SBT
-        uses: sbt/setup-sbt@v1
+        uses: sbt/setup-sbt@67d461eba2c4753196c230e02da850757ba4775e # v1.5.14
 
       - name: Restore incremental compilation state
         # setup-java's `cache: sbt` stores downloaded dependencies only, never compiled output.

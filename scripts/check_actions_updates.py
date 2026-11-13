@@ -3,7 +3,10 @@
 workflows and composite actions.
 
 Actions here are pinned to a floating major-version tag (`owner/repo@vN`), matching
-the repo convention — `.github/dependabot.yml`'s weekly `github-actions` update is
+the repo convention, except third-party ones, which are pinned to a commit SHA with
+the exact version in a trailing comment (`owner/repo@<sha> # vX.Y.Z`, as GitHub's
+security hardening guide recommends) and compared on the full version. This part
+is local to aero-ui-ai: keep it when refreshing this copy from aero-hex-ai — `.github/dependabot.yml`'s weekly `github-actions` update is
 what keeps them current; this script is the on-demand single-pass equivalent. It
 never rewrites files; it only reports current vs. latest so applying a bump is a
 one-line tag edit (in every file that references the action).
@@ -23,8 +26,11 @@ from typing import Optional, Tuple
 
 # Matches `uses: owner/repo@<ref>` where <ref> is a version tag (`v7`, `v7.0.1`).
 # Local actions (`uses: ./...`), Docker actions (`uses: docker://...`), and
-# branch/SHA refs don't match and are skipped.
+# branch refs don't match and are skipped.
 USES_RE = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@(v[0-9][\w.-]*)")
+
+# Matches a SHA-pinned `uses: owner/repo@<40-hex sha> # vX.Y.Z`; the comment carries the version.
+PINNED_RE = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@[0-9a-f]{40}\s*#\s*(v[0-9][\w.-]*)")
 
 
 def version_key(v: str) -> Tuple[int, ...]:
@@ -61,9 +67,10 @@ def latest_tag(repo: str) -> Optional[str]:
     return None
 
 
-def find_refs(root: Path) -> dict:
-    """repo -> {refs: {ref -> [locations]}}"""
+def find_refs(root: Path) -> Tuple[dict, set]:
+    """(repo -> {ref -> [locations]}, set of SHA-pinned repos)"""
     refs: dict = {}
+    pinned: set = set()
     paths = list((root / ".github" / "workflows").glob("*.yml")) + list(
         (root / ".github" / "actions").rglob("action.yml")
     )
@@ -71,13 +78,17 @@ def find_refs(root: Path) -> dict:
         for lineno, line in enumerate(path.read_text().splitlines(), start=1):
             if line.lstrip().startswith("#"):
                 continue  # a commented-out `uses:` isn't a real reference
-            m = USES_RE.search(line)
+            m = PINNED_RE.search(line)
+            if m:
+                pinned.add(m.group(1))
+            else:
+                m = USES_RE.search(line)
             if not m:
                 continue
             repo, ref = m.groups()
             entry = refs.setdefault(repo, {})
             entry.setdefault(ref, []).append(f"{path.relative_to(root)}:{lineno}")
-    return refs
+    return refs, pinned
 
 
 def main() -> None:
@@ -87,7 +98,7 @@ def main() -> None:
         sys.exit(1)
 
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
-    refs = find_refs(root)
+    refs, pinned = find_refs(root)
     if not refs:
         print("No version-tagged GitHub Actions found under .github/.", file=sys.stderr)
         sys.exit(1)
@@ -106,6 +117,10 @@ def main() -> None:
         marker = ""
         if len(current_refs) > 1:
             marker = "  <-- INCONSISTENT ref across files, see locations below"
+        elif repo in pinned:
+            # SHA-pinned to an exact version, so any newer release means a new SHA to pin.
+            if version_key(latest) > version_key(current_refs[0]):
+                marker = f"  <-- update available (pin the new release's commit SHA)"
         else:
             # Compare only the major component — the repo pins to a floating `vN`.
             cur_major = version_key(current_refs[0])[:1]
