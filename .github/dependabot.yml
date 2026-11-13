@@ -1,0 +1,23 @@
+# Weekly update PRs, mirroring aero-hex-ai's .github/dependabot.yml. With "Dependabot security
+# updates" enabled in the repository settings, it also raises PRs for vulnerable npm packages,
+# which the Friday dependency report only lists.
+# sbt dependencies stay covered by that report (`sbt xdup`).
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    ignore:
+      # Major bumps (vite, jsdom) need migration-guide review, so they stay manual, like aero-hex-ai's sbt ones.
+      - dependency-name: "*"
+        update-types: [ "version-update:semver-major" ]
