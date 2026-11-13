@@ -6,6 +6,7 @@ import app.api.AuthApi
 import app.api.CountriesApi
 import app.api.Http.given
 import app.auth.Session
+import app.components.FormValues.*
 import app.router.AppRouter
 import app.router.Page
 import com.raquo.laminar.api.L.*
@@ -42,7 +43,7 @@ object TopBar {
     val resultVar = Var(Option.empty[Either[String, String]]) // Left = error message, Right = result summary
 
     def runLookup(): Unit = {
-      val code = codeVar.now().trim
+      val code = codeVar.trimmed
       if (code.isEmpty) resultVar.set(None)
       else {
         val summary = kindVar.now() match {

@@ -8,6 +8,7 @@ import app.components.EntityCrudPage
 import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
+import app.components.FormValues.*
 import app.models.AircraftDto
 import app.models.CreateAircraftRequest
 import app.models.UpdateAircraftRequest
@@ -39,7 +40,7 @@ object AircraftPage {
 
     def save(): Unit = {
       val req =
-        UpdateAircraftRequest(typeCodeVar.now().trim, descriptionVar.now().trim, airlineIcaoVar.now().trim.toUpperCase)
+        UpdateAircraftRequest(typeCodeVar.trimmed, descriptionVar.trimmed, airlineIcaoVar.code)
       AsyncAction.run(savingVar, errVar)(AircraftApi.update(item.registration, req))(onSaved)
     }
 
@@ -68,10 +69,10 @@ object AircraftPage {
 
     def save(): Unit = {
       val req = CreateAircraftRequest(
-        registrationVar.now().trim.toUpperCase,
-        typeCodeVar.now().trim,
-        descriptionVar.now().trim,
-        airlineIcaoVar.now().trim.toUpperCase
+        registrationVar.code,
+        typeCodeVar.trimmed,
+        descriptionVar.trimmed,
+        airlineIcaoVar.code
       )
       AsyncAction.run(savingVar, errVar)(AircraftApi.create(req))(onCreated)
     }
@@ -96,8 +97,8 @@ object AircraftPage {
       registrationVar: Var[String],
       airlineFilterVar: Var[String]
   )(page: Int, @unused query: String): Future[List[AircraftDto]] = {
-    val registration = registrationVar.now().trim.toUpperCase
-    val airline = airlineFilterVar.now().trim.toUpperCase
+    val registration = registrationVar.code
+    val airline = airlineFilterVar.code
     if (registration.nonEmpty) AircraftApi.get(registration).map(List(_)).recover { case _ => Nil }
     else if (airline.nonEmpty) AircraftApi.byAirline(airline, page)
     else AircraftApi.list(page = page)
@@ -113,7 +114,7 @@ object AircraftPage {
       registrationVar: Var[String],
       airlineFilterVar: Var[String]
   )(reload: () => Unit, clearSearch: () => Unit): List[HtmlElement] = {
-    def submitRegistration(): Unit = if (registrationVar.now().trim.nonEmpty) reload()
+    def submitRegistration(): Unit = if (registrationVar.trimmed.nonEmpty) reload()
 
     List(
       input(

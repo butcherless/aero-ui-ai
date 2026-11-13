@@ -7,6 +7,7 @@ import app.components.EntityCrudPage
 import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
+import app.components.FormValues.*
 import app.models.CountryDto
 import app.models.CreateCountryRequest
 import app.models.UpdateCountryRequest
@@ -32,7 +33,7 @@ object CountriesPage {
     val errVar = Var(Option.empty[String])
 
     def save(): Unit =
-      AsyncAction.run(savingVar, errVar)(CountriesApi.update(item.code, UpdateCountryRequest(nameVar.now().trim)))(
+      AsyncAction.run(savingVar, errVar)(CountriesApi.update(item.code, UpdateCountryRequest(nameVar.trimmed)))(
         onSaved
       )
 
@@ -56,7 +57,7 @@ object CountriesPage {
     val errVar = Var(Option.empty[String])
 
     def save(): Unit = {
-      val req = CreateCountryRequest(codeVar.now().trim.toUpperCase, nameVar.now().trim)
+      val req = CreateCountryRequest(codeVar.code, nameVar.trimmed)
       AsyncAction.run(savingVar, errVar)(CountriesApi.create(req))(onCreated)
     }
 

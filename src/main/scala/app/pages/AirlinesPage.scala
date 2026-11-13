@@ -8,6 +8,7 @@ import app.components.EntityCrudPage
 import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
+import app.components.FormValues.*
 import app.models.AirlineDto
 import app.models.CreateAirlineRequest
 import app.models.UpdateAirlineRequest
@@ -37,11 +38,11 @@ object AirlinesPage {
 
     def save(): Unit = {
       val req = UpdateAirlineRequest(
-        nameVar.now().trim,
-        countryCodeVar.now().trim.toUpperCase,
-        Option(aliasVar.now().trim).filter(_.nonEmpty),
-        Option(callsignVar.now().trim).filter(_.nonEmpty),
-        Option(iataVar.now().trim.toUpperCase).filter(_.nonEmpty)
+        nameVar.trimmed,
+        countryCodeVar.code,
+        aliasVar.optional,
+        callsignVar.optional,
+        iataVar.optionalCode
       )
       AsyncAction.run(savingVar, errVar)(AirlinesApi.update(item.icao, req))(onSaved)
     }
@@ -75,12 +76,12 @@ object AirlinesPage {
 
     def save(): Unit = {
       val req = CreateAirlineRequest(
-        icaoVar.now().trim.toUpperCase,
-        nameVar.now().trim,
-        countryCodeVar.now().trim.toUpperCase,
-        Option(aliasVar.now().trim).filter(_.nonEmpty),
-        Option(callsignVar.now().trim).filter(_.nonEmpty),
-        Option(iataVar.now().trim.toUpperCase).filter(_.nonEmpty)
+        icaoVar.code,
+        nameVar.trimmed,
+        countryCodeVar.code,
+        aliasVar.optional,
+        callsignVar.optional,
+        iataVar.optionalCode
       )
       AsyncAction.run(savingVar, errVar)(AirlinesApi.create(req))(onCreated)
     }

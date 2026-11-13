@@ -6,6 +6,7 @@ import app.components.AsyncAction
 import app.components.EntityTable
 import app.components.FormActions
 import app.components.FormField
+import app.components.FormValues.*
 import app.components.MasterDetailShell
 import app.components.PagedLoader
 import app.models.AirlineDto
@@ -87,7 +88,7 @@ object RoutesPage {
     reload()
 
     def add(): Unit = {
-      val icao = newIcaoVar.now().trim.toUpperCase
+      val icao = newIcaoVar.code
       if (icao.length == 3) {
         RoutesApi.associateAirline(route.originIata, route.destinationIata, icao).onComplete {
           case Success(_) =>
@@ -180,11 +181,11 @@ object RoutesPage {
     val errVar = Var(Option.empty[String])
 
     def save(): Unit =
-      distanceVar.now().trim.toIntOption match {
+      distanceVar.trimmed.toIntOption match {
         case None =>
           errVar.set(Some("Distance must be a whole number of kilometers."))
         case Some(km) =>
-          val req = CreateRouteRequest(originVar.now().trim.toUpperCase, destinationVar.now().trim.toUpperCase, km)
+          val req = CreateRouteRequest(originVar.code, destinationVar.code, km)
           AsyncAction.run(savingVar, errVar)(RoutesApi.create(req)) { created =>
             itemsVar.update(_ :+ created)
             detailModeVar.set(Editing(created))

@@ -4,6 +4,7 @@ import app.api.Http
 import app.api.Http.given
 import app.components.DebouncedFilterInput
 import app.components.EntityListSpec
+import app.components.FormValues.*
 import com.raquo.laminar.api.L.*
 
 import scala.concurrent.Future
@@ -31,7 +32,7 @@ private[pages] object CountryScopedList {
       page: Int,
       query: String
   ): Future[List[T]] = {
-    val country = countryFilterVar.now().trim.toUpperCase
+    val country = countryFilterVar.code
     if (country.nonEmpty) endpoints.byCountry(country, page)
     else if (query.trim.length >= MinNameSearchLength)
       // Slice the unpaginated matches so Prev/Next behave as they do for a plain list.

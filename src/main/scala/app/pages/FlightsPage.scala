@@ -7,6 +7,7 @@ import app.components.EntityCrudPage
 import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
+import app.components.FormValues.*
 import app.models.CreateFlightRequest
 import app.models.FlightDto
 import app.models.UpdateFlightRequest
@@ -37,12 +38,12 @@ object FlightsPage {
 
     def save(): Unit = {
       val req = UpdateFlightRequest(
-        schedDepartureVar.now().trim,
-        schedArrivalVar.now().trim,
-        originIataVar.now().trim.toUpperCase,
-        destinationIataVar.now().trim.toUpperCase,
-        airlineIcaoVar.now().trim.toUpperCase,
-        Option(aliasVar.now().trim).filter(_.nonEmpty)
+        schedDepartureVar.trimmed,
+        schedArrivalVar.trimmed,
+        originIataVar.code,
+        destinationIataVar.code,
+        airlineIcaoVar.code,
+        aliasVar.optional
       )
       AsyncAction.run(savingVar, errVar)(FlightsApi.update(item.code, req))(onSaved)
     }
@@ -78,13 +79,13 @@ object FlightsPage {
 
     def save(): Unit = {
       val req = CreateFlightRequest(
-        codeVar.now().trim.toUpperCase,
-        schedDepartureVar.now().trim,
-        schedArrivalVar.now().trim,
-        originIataVar.now().trim.toUpperCase,
-        destinationIataVar.now().trim.toUpperCase,
-        airlineIcaoVar.now().trim.toUpperCase,
-        Option(aliasVar.now().trim).filter(_.nonEmpty)
+        codeVar.code,
+        schedDepartureVar.trimmed,
+        schedArrivalVar.trimmed,
+        originIataVar.code,
+        destinationIataVar.code,
+        airlineIcaoVar.code,
+        aliasVar.optional
       )
       AsyncAction.run(savingVar, errVar)(FlightsApi.create(req))(onCreated)
     }

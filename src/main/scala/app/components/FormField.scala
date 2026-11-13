@@ -6,46 +6,23 @@ import com.raquo.laminar.api.L.*
 object FormField {
 
   def text(fieldLabel: String, valueVar: Var[String], placeholderText: String = ""): HtmlElement =
-    div(
-      cls := "form-field",
-      div(cls := "form-field-label", fieldLabel),
-      input(
-        cls := "form-input",
-        placeholder := placeholderText,
-        controlled(
-          value <-- valueVar.signal,
-          onInput.mapToValue --> valueVar.writer
-        )
-      )
-    )
+    inputField("text", fieldLabel, valueVar, placeholderText)
 
   def number(fieldLabel: String, valueVar: Var[String], placeholderText: String = ""): HtmlElement =
-    div(
-      cls := "form-field",
-      div(cls := "form-field-label", fieldLabel),
-      input(
-        cls := "form-input",
-        typ := "number",
-        placeholder := placeholderText,
-        controlled(
-          value <-- valueVar.signal,
-          onInput.mapToValue --> valueVar.writer
-        )
-      )
-    )
+    inputField("number", fieldLabel, valueVar, placeholderText)
 
   def password(fieldLabel: String, valueVar: Var[String], placeholderText: String = ""): HtmlElement =
+    inputField("password", fieldLabel, valueVar, placeholderText)
+
+  private def inputField(inputType: String, fieldLabel: String, valueVar: Var[String], placeholderText: String) =
     div(
       cls := "form-field",
       div(cls := "form-field-label", fieldLabel),
       input(
         cls := "form-input",
-        typ := "password",
+        typ := inputType,
         placeholder := placeholderText,
-        controlled(
-          value <-- valueVar.signal,
-          onInput.mapToValue --> valueVar.writer
-        )
+        controlled(value <-- valueVar.signal, onInput.mapToValue --> valueVar.writer)
       )
     )
 

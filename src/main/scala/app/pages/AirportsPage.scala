@@ -8,6 +8,7 @@ import app.components.EntityCrudPage
 import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
+import app.components.FormValues.*
 import app.models.AirportDto
 import app.models.CreateAirportRequest
 import app.models.UpdateAirportRequest
@@ -46,10 +47,10 @@ object AirportsPage {
 
     def save(): Unit = {
       val req = UpdateAirportRequest(
-        icaoVar.now().trim,
-        nameVar.now().trim,
-        cityVar.now().trim,
-        countryCodeVar.now().trim.toUpperCase
+        icaoVar.trimmed,
+        nameVar.trimmed,
+        cityVar.trimmed,
+        countryCodeVar.code
       )
       AsyncAction.run(savingVar, errVar)(AirportsApi.update(item.iata, req))(onSaved)
     }
@@ -81,11 +82,11 @@ object AirportsPage {
 
     def save(): Unit = {
       val req = CreateAirportRequest(
-        iataVar.now().trim.toUpperCase,
-        icaoVar.now().trim.toUpperCase,
-        nameVar.now().trim,
-        cityVar.now().trim,
-        countryCodeVar.now().trim.toUpperCase
+        iataVar.code,
+        icaoVar.code,
+        nameVar.trimmed,
+        cityVar.trimmed,
+        countryCodeVar.code
       )
       AsyncAction.run(savingVar, errVar)(AirportsApi.create(req))(onCreated)
     }

@@ -5,6 +5,7 @@ import app.api.Http
 import app.api.Http.given
 import app.auth.Session
 import app.components.FormField
+import app.components.FormValues.*
 import app.models.LoginRequest
 import app.router.AppRouter
 import app.router.Page
@@ -31,7 +32,7 @@ object LoginPage {
     // Not AsyncAction.run: that always shows ex.getMessage, but login needs status-differentiated
     // copy (401 = wrong credentials, 400/other = generic) per the auth API contract.
     def submit(): Unit = {
-      val username = usernameVar.now().trim
+      val username = usernameVar.trimmed
       savingVar.set(true)
       errVar.set(None)
       AuthApi.login(LoginRequest(username, passwordVar.now())).onComplete {
@@ -58,7 +59,7 @@ object LoginPage {
     }
 
     def trySubmit(): Unit =
-      if (usernameVar.now().trim.nonEmpty && passwordVar.now().nonEmpty) submit()
+      if (usernameVar.trimmed.nonEmpty && passwordVar.now().nonEmpty) submit()
 
     div(
       cls := "login-page",
