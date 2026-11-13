@@ -9,7 +9,7 @@ object FlightsApi {
 
   def list(page: Int = 1): Future[List[FlightDto]] =
     Http.getJsonList[FlightDto](
-      base + Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
+      base + Http.paged(page)
     )
 
   def create(req: CreateFlightRequest): Future[FlightDto] =

@@ -9,7 +9,7 @@ object AirportsApi {
 
   def list(page: Int = 1): Future[List[AirportDto]] =
     Http.getJsonList[AirportDto](
-      base + Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
+      base + Http.paged(page)
     )
 
   def search(q: String): Future[List[AirportDto]] =
@@ -18,7 +18,7 @@ object AirportsApi {
   def byCountry(code: String, page: Int = 1): Future[List[AirportDto]] =
     Http.getJsonList[AirportDto](
       s"/api/v1/countries/$code/airports" +
-        Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
+        Http.paged(page)
     )
 
   def get(iata: String): Future[AirportDto] =

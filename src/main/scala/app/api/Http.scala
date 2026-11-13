@@ -112,6 +112,10 @@ object Http {
   def deleteReq(path: String): Future[Unit] = delete(path).map(_ => ())
   def postEmptyReq(path: String): Future[Unit] = postEmpty(path).map(_ => ())
 
+  /** `query` plus the `page`/`pageSize` pair every paginated list endpoint takes, at `defaultPageSize`. */
+  def paged(page: Int, params: (String, Option[String])*): String =
+    query(params ++ Seq("page" -> Some(page.toString), "pageSize" -> Some(defaultPageSize.toString))*)
+
   /** Builds a `?k=v&k2=v2` query string, dropping empty/absent values. */
   def query(params: (String, Option[String])*): String = {
     val pairs = params.collect {

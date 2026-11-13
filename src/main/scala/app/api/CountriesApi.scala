@@ -9,11 +9,7 @@ object CountriesApi {
 
   def list(name: Option[String] = None, page: Int = 1): Future[List[CountryDto]] =
     Http.getJsonList[CountryDto](
-      base + Http.query(
-        "name" -> name,
-        "page" -> Some(page.toString),
-        "pageSize" -> Some(Http.defaultPageSize.toString)
-      )
+      base + Http.paged(page, "name" -> name)
     )
 
   def get(code: String): Future[CountryDto] =

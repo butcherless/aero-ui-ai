@@ -10,6 +10,6 @@ object FlightInstancesApi {
 
   def list(page: Int = 1): Future[List[FlightInstanceDto]] =
     Http.getJsonList[FlightInstanceDto](
-      base + Http.query("page" -> Some(page.toString), "pageSize" -> Some(Http.defaultPageSize.toString))
+      base + Http.paged(page)
     )
 }

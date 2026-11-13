@@ -4,7 +4,6 @@ import app.api.AirlinesApi
 import app.api.Http
 import app.api.Http.given
 import app.components.AsyncAction
-import app.components.DebouncedFilterInput
 import app.components.EntityCrudPage
 import app.components.EntityListSpec
 import app.components.FormActions
@@ -13,8 +12,6 @@ import app.models.AirlineDto
 import app.models.CreateAirlineRequest
 import app.models.UpdateAirlineRequest
 import com.raquo.laminar.api.L.*
-
-import scala.concurrent.Future
 
 object AirlinesPage {
 
@@ -102,34 +99,6 @@ object AirlinesPage {
     )
   }
 
-  // The backend's airline search (/airlines/search) requires 3+ characters and returns every match unpaginated, so
-  // fetchPage slices that full match list itself to keep Prev/Next behaving the same way it does for a plain list.
-  private val MinNameSearchLength = 3
-
-  // ISO 3166-1 alpha-2 codes are exactly 2 letters, so 2 is both the minimum and the practical maximum useful length.
-  private val MinCountrySearchLength = 2
-
-  private def fetchAirlines(countryFilterVar: Var[String])(page: Int, query: String): Future[List[AirlineDto]] = {
-    val country = countryFilterVar.now().trim.toUpperCase
-    if (country.nonEmpty) AirlinesApi.byCountry(country, page)
-    else if (query.trim.length >= MinNameSearchLength)
-      AirlinesApi.search(query.trim).map { matches =>
-        val pageSize = Http.defaultPageSize
-        matches.slice((page - 1) * pageSize, page * pageSize)
-      }
-    else AirlinesApi.list(page = page)
-  }
-
-  // Country-by-code browse. Takes priority over the name search when set, since the backend has no endpoint
-  // combining both — so focusing either box clears the other to avoid the confusing state of both holding text at
-  // once. Debounced auto-fire at 2+ characters mirrors the name search box's own serverSearch behavior.
-  private def countryFilterControl(
-      filterVar: Var[String],
-      reload: () => Unit,
-      clearSearch: () => Unit
-  ): List[HtmlElement] =
-    List(DebouncedFilterInput(filterVar, "Country code (e.g. ES)", MinCountrySearchLength, reload, clearSearch))
-
   private val columns: List[(String, AirlineDto => String)] = List(
     "ICAO" -> (_.icao),
     "Name" -> (_.name),
@@ -146,23 +115,16 @@ object AirlinesPage {
       a.alias.exists(_.toLowerCase.contains(needle)) ||
       a.iata.exists(_.toLowerCase.contains(needle))
 
-  // Built per page instance: the country filter's state must not outlive the page.
-  private def listSpec(): EntityListSpec[AirlineDto] = {
-    val countryFilterVar = Var("")
-    EntityListSpec[AirlineDto](
+  private def listSpec(): EntityListSpec[AirlineDto] =
+    CountryScopedList.listSpec(
       title = "Airlines",
-      searchPlaceholder = "Search airline by name (3+ characters)…",
+      noun = "airline",
       columns = columns,
       rowKey = rowKey,
       matchesSearch = matchesSearch,
       sampleData = sampleData,
-      fetchPage = fetchAirlines(countryFilterVar),
-      serverSearch = true,
-      minSearchLength = MinNameSearchLength,
-      renderExtraToolbar = (reload, clearSearch) => countryFilterControl(countryFilterVar, reload, clearSearch),
-      onSearchFocus = () => countryFilterVar.set("")
+      endpoints = CountryScopedList.Endpoints(AirlinesApi.list(_), AirlinesApi.search, AirlinesApi.byCountry(_, _))
     )
-  }
 
   def apply(): HtmlElement = EntityCrudPage(listSpec(), createForm, editForm)
 

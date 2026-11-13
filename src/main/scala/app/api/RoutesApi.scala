@@ -13,12 +13,7 @@ object RoutesApi {
 
   def list(origin: Option[String] = None, destination: Option[String] = None, page: Int = 1): Future[List[RouteDto]] =
     Http.getJsonList[RouteDto](
-      "/api/v1/routes" + Http.query(
-        "origin" -> origin,
-        "destination" -> destination,
-        "page" -> Some(page.toString),
-        "pageSize" -> Some(Http.defaultPageSize.toString)
-      )
+      "/api/v1/routes" + Http.paged(page, "origin" -> origin, "destination" -> destination)
     )
 
   def create(req: CreateRouteRequest): Future[RouteDto] =

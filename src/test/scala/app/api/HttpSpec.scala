@@ -23,6 +23,13 @@ class HttpSpec extends AnyFunSpec with Matchers {
     }
   }
 
+  describe("Http.paged") {
+    it("appends page and the default page size after the other params") {
+      Http.paged(2, "name" -> Some("Spain"), "q" -> None) shouldBe
+        s"?name=Spain&page=2&pageSize=${Http.defaultPageSize}"
+    }
+  }
+
   describe("Http.loadFailure") {
     it("surfaces the backend's own message verbatim for an ApiError, and skips the sample-data fallback") {
       val failure = Http.loadFailure(Http.ApiError(404, "Country not found: AA"))
