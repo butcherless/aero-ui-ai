@@ -35,7 +35,7 @@ sbt scalafmtCheckAll "scalafixAll --check"   # same check as CI
 
 Under `src/main/scala/app/`, bottom to top:
 
-- **`api/Http.scala`** is the only code touching `dom.fetch`. It handles upickle (de)serialization, turns non-2xx into `Http.ApiError`, and attaches the bearer token from `Session.token`. A 401 on any path except login clears the session and redirects to login. **`api/*Api.scala`** has one thin module per entity plus `AuthApi`.
+- **`api/Http.scala`** is the only code touching `dom.fetch`. It handles upickle (de)serialization, turns non-2xx into `Http.ApiError`, and attaches the bearer token. It doesn't import `Session` or the router: `App.main` installs an `Http.Auth` that supplies `Session.token` and, on a 401 from any path except login, clears the session and redirects to login. **`api/*Api.scala`** has one thin module per entity plus `AuthApi`.
 - **`auth/Session.scala`** holds the token, expiry and username, persisted to `localStorage`. `App.scala` gates the UI on `Session.isAuthenticated`: standalone `LoginPage` if false, `Layout` if true. `TopBar` shows the user, an exact-code lookup widget, and "Disconnect", which clears the session immediately (the server logout is best-effort and never blocks).
 - **`models/Dtos.scala`** has case classes matching the OpenAPI schemas exactly. `AirportDto`/`AirlineDto` omit the country in GET responses even though create/update requires it. That's the real API shape, so `AirportsApi.countryOf` looks it up separately.
 - **`components/`** holds generic UI pieces:

@@ -35,6 +35,26 @@ object Http {
   // rendering, and Scala.js deprecated it in 1.8. MacrotaskExecutor is the replacement the Scala.js docs recommend.
   given ExecutionContext = org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
+  /** What Http needs from the auth layer: the bearer token to send, and what to do when the session turns out to be
+    * invalid. `App` installs the real one at startup, so this low-level module doesn't depend on `Session` or the
+    * router.
+    */
+  trait Auth {
+    def token: Option[String]
+    def onUnauthorized(): Unit
+  }
+
+  object Auth {
+    val anonymous: Auth = new Auth {
+      def token: Option[String] = None
+      def onUnauthorized(): Unit = ()
+    }
+  }
+
+  private var auth: Auth = Auth.anonymous
+
+  def install(newAuth: Auth): Unit = auth = newAuth
+
   /** Raised for any non-2xx response, carrying the backend's own error message when it sends one. */
   final case class ApiError(status: Int, message: String) extends RuntimeException(message)
 
@@ -55,13 +75,13 @@ object Http {
   // all, as under plain jsdom) becomes a failed Future like every other error case, instead of an
   // uncaught exception escaping straight out of whatever click handler triggered the call.
   //
-  // Session.token is read synchronously, *before* entering the Future block — callers like
+  // The token is read synchronously, *before* entering the Future block — callers like
   // TopBar's disconnect (which fires the logout call then immediately clears the session on the
   // very next line) need the token captured at call time, not whenever the deferred fetch actually
   // runs, or the request would go out with no Authorization header at all.
   private def rawRequest(method: HttpMethod, path: String, body: Option[String]): Future[(Int, String)] = {
     val headers = js.Dictionary("Content-Type" -> "application/json")
-    app.auth.Session.token.foreach(t => headers("Authorization") = s"Bearer $t")
+    auth.token.foreach(t => headers("Authorization") = s"Bearer $t")
 
     Future {
       val init = new RequestInit {}
@@ -87,13 +107,10 @@ object Http {
         if (status >= 200 && status < 300) text
         else {
           // A 401 from anywhere except login itself means the session is no longer valid (missing,
-          // expired, or invalid token) — clear it and bounce to login from this one central place,
-          // rather than every call site handling it. Login's own 401 is a "wrong password" event,
-          // not a "session died" event, and must surface as an inline form error instead.
-          if (status == 401 && path != loginPath) {
-            app.auth.Session.clear()
-            app.router.AppRouter.navigateTo(app.router.Page.Login)
-          }
+          // expired, or invalid token), handled in this one central place rather than at every call
+          // site. Login's own 401 is a "wrong password" event, not a "session died" event, and must
+          // surface as an inline form error instead.
+          if (status == 401 && path != loginPath) auth.onUnauthorized()
           throw ApiError(status, extractMessage(text).getOrElse(s"Error HTTP $status"))
         }
     }

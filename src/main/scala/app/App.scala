@@ -1,5 +1,6 @@
 package app
 
+import app.api.Http
 import app.auth.Session
 import app.components.Layout
 import app.pages.*
@@ -10,7 +11,18 @@ import org.scalajs.dom
 
 object App {
 
+  // Clearing the session flips App back to LoginPage; the navigation puts /login in the URL bar.
+  private object SessionAuth extends Http.Auth {
+    def token: Option[String] = Session.token
+    def onUnauthorized(): Unit = {
+      Session.clear()
+      AppRouter.navigateTo(Page.Login)
+    }
+  }
+
   def main(args: Array[String]): Unit = {
+    Http.install(SessionAuth)
+
     val contentSignal: Signal[HtmlElement] = AppRouter.currentPageSignal.map {
       case Page.Countries => CountriesPage()
       case Page.Airports => AirportsPage()
