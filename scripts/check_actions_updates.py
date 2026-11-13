@@ -25,12 +25,14 @@ from pathlib import Path
 from typing import Optional, Tuple
 
 # Matches `uses: owner/repo@<ref>` where <ref> is a version tag (`v7`, `v7.0.1`).
-# Local actions (`uses: ./...`), Docker actions (`uses: docker://...`), and
-# branch refs don't match and are skipped.
-USES_RE = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@(v[0-9][\w.-]*)")
+# An action in a subdirectory (`actions/cache/restore@v6`) is reported under its
+# repo (`actions/cache`), which is what has the releases. Local actions
+# (`uses: ./...`), Docker actions (`uses: docker://...`), and branch refs don't
+# match and are skipped.
+USES_RE = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)(?:/[\w./-]+)?@(v[0-9][\w.-]*)")
 
 # Matches a SHA-pinned `uses: owner/repo@<40-hex sha> # vX.Y.Z`; the comment carries the version.
-PINNED_RE = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)@[0-9a-f]{40}\s*#\s*(v[0-9][\w.-]*)")
+PINNED_RE = re.compile(r"uses:\s*([\w.-]+/[\w.-]+)(?:/[\w./-]+)?@[0-9a-f]{40}\s*#\s*(v[0-9][\w.-]*)")
 
 
 def version_key(v: str) -> Tuple[int, ...]:
