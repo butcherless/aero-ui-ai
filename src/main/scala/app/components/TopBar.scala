@@ -14,6 +14,7 @@ import org.scalajs.dom
 
 import scala.util.Failure
 import scala.util.Success
+import scala.util.control.NonFatal
 
 /** Top bar above the content area: brand logo and an exact-code quick-lookup widget on the left, the logged-in user's
   * name and a working Disconnect button on the right.
@@ -100,7 +101,7 @@ object TopBar {
   // call can fail or hang; discarding the token client-side is what actually ends the session from
   // the UI's point of view, per the auth API contract).
   private def disconnect(): Unit = {
-    AuthApi.logout().recover { case _ => () }
+    AuthApi.logout().recover { case NonFatal(_) => () }
     Session.clear()
   }
 

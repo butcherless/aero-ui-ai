@@ -17,6 +17,7 @@ import org.scalajs.dom
 
 import scala.annotation.unused
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 object AircraftPage {
 
@@ -99,7 +100,7 @@ object AircraftPage {
   )(page: Int, @unused query: String): Future[List[AircraftDto]] = {
     val registration = registrationVar.code
     val airline = airlineFilterVar.code
-    if (registration.nonEmpty) AircraftApi.get(registration).map(List(_)).recover { case _ => Nil }
+    if (registration.nonEmpty) AircraftApi.get(registration).map(List(_)).recover { case NonFatal(_) => Nil }
     else if (airline.nonEmpty) AircraftApi.byAirline(airline, page)
     else AircraftApi.list(page = page)
   }

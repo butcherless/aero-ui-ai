@@ -102,17 +102,15 @@ object Http {
   private val loginPath = "/api/v1/auth/login"
 
   private def call(method: HttpMethod, path: String, body: Option[String]): Future[String] =
-    rawRequest(method, path, body).map {
+    rawRequest(method, path, body).flatMap {
+      case (status, text) if status >= 200 && status < 300 => Future.successful(text)
       case (status, text) =>
-        if (status >= 200 && status < 300) text
-        else {
-          // A 401 from anywhere except login itself means the session is no longer valid (missing,
-          // expired, or invalid token), handled in this one central place rather than at every call
-          // site. Login's own 401 is a "wrong password" event, not a "session died" event, and must
-          // surface as an inline form error instead.
-          if (status == 401 && path != loginPath) auth.onUnauthorized()
-          throw ApiError(status, extractMessage(text).getOrElse(s"Error HTTP $status"))
-        }
+        // A 401 from anywhere except login itself means the session is no longer valid (missing,
+        // expired, or invalid token), handled in this one central place rather than at every call
+        // site. Login's own 401 is a "wrong password" event, not a "session died" event, and must
+        // surface as an inline form error instead.
+        if (status == 401 && path != loginPath) auth.onUnauthorized()
+        Future.failed(ApiError(status, extractMessage(text).getOrElse(s"Error HTTP $status")))
     }
 
   def get(path: String): Future[String] = call(HttpMethod.GET, path, None)
