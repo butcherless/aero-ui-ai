@@ -16,210 +16,173 @@ object DetailMode {
   case class Editing[T](item: T) extends DetailMode[T]
 }
 
-/** Generic master-detail CRUD page shell shared by the straightforward entities (Countries, Airports, Airlines,
-  * Aircraft, Flights): paginated loading with sample-data fallback, client-side search filtering (over whatever's
-  * currently loaded), row selection, and wiring into MasterDetailShell. Each entity supplies only its API calls and its
-  * create/edit form bodies, since the fields differ per entity.
+/** How an entity's list is shown, loaded and searched. A page defines it once and passes it to both
+  * `EntityCrudPage.apply` and `EntityCrudPage.readOnly`.
   *
   * `serverSearch = true` additionally debounces the search box and re-fetches page 1 from `fetchPage` with the typed
-  * query on every change (see `CountriesPage`) — for entities whose backend list endpoint has no query-based search,
-  * leave it `false` (the default): `fetchPage` simply ignores the query it's given, and typing only narrows the
-  * already-loaded page via `matchesSearch`, exactly as before. `minSearchLength` (only meaningful alongside
-  * `serverSearch = true`) skips the debounced re-fetch entirely below that many characters — no request at all, not
-  * even an unfiltered one — except when the box is cleared back to empty, which always re-fetches the plain list.
+  * query on every change (see `CountriesPage`). For entities whose backend list endpoint has no query-based search,
+  * leave it `false` (the default): `fetchPage` ignores the query it's given, and typing only narrows the already-loaded
+  * page via `matchesSearch`. `minSearchLength` (only meaningful with `serverSearch = true`) skips the debounced
+  * re-fetch below that many characters, except when the box is cleared back to empty, which always re-fetches the plain
+  * list.
+  *
+  * `renderExtraToolbar` receives `reload` (re-fetch page 1 of the last query) and `clearSearch` (empty the main search
+  * box), for pages with secondary filters.
+  */
+final case class EntityListSpec[T](
+    title: String,
+    searchPlaceholder: String,
+    columns: List[(String, T => String)],
+    rowKey: T => String,
+    matchesSearch: (T, String) => Boolean,
+    sampleData: List[T],
+    fetchPage: (Int, String) => Future[List[T]],
+    pageSize: Int = Http.defaultPageSize,
+    serverSearch: Boolean = false,
+    debounceMs: Int = 350,
+    minSearchLength: Int = 0,
+    renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
+    onSearchFocus: () => Unit = () => ()
+)
+
+/** Generic master-detail page shared by the straightforward entities (Countries, Airports, Airlines, Aircraft, Flights,
+  * and read-only Flight Instances): paginated loading with sample-data fallback, client-side search filtering over the
+  * loaded page, row selection, and wiring into MasterDetailShell. Each entity supplies an `EntityListSpec` and, for
+  * full CRUD, its create/edit form bodies.
   */
 object EntityCrudPage {
 
-  /** The paginated-loading/search/sample-data-fallback state shared by `apply` and `readOnly` — the two only differ in
-    * what they do with a row once it's selected (full CRUD vs. read-only field dump), not in how the list itself is
-    * loaded, paged, or filtered.
+  /** The loading/search state shared by `apply` and `readOnly`: the two only differ in what they do with a selected row
+    * (full CRUD vs. a read-only field dump), not in how the list is loaded, paged or filtered.
     */
-  private final case class LoadState[T](
-      loader: PagedLoader[String, T],
-      searchVar: Var[String],
-      filtered: Signal[List[T]],
-      runServerSearch: String => Unit
-  )
+  private final class ListState[T](spec: EntityListSpec[T]) {
+    val loader: PagedLoader[String, T] =
+      PagedLoader[String, T](spec.fetchPage, spec.sampleData, initialQuery = "", spec.pageSize)
+    val searchVar: Var[String] = Var("")
 
-  private def buildLoadState[T](
-      fetchPage: (Int, String) => Future[List[T]],
-      matchesSearch: (T, String) => Boolean,
-      sampleData: List[T],
-      pageSize: Int,
-      serverSearch: Boolean,
-      minSearchLength: Int
-  ): LoadState[T] = {
-    val loader = PagedLoader[String, T](fetchPage, sampleData, initialQuery = "", pageSize)
-    val searchVar = Var("")
-
-    def runServerSearch(query: String): Unit = {
+    private def runServerSearch(query: String): Unit = {
       val trimmed = query.trim
-      if (serverSearch && (trimmed.isEmpty || trimmed.length >= minSearchLength)) loader.load(1, query)
+      if (spec.serverSearch && (trimmed.isEmpty || trimmed.length >= spec.minSearchLength)) loader.load(1, query)
     }
 
     val filtered: Signal[List[T]] =
       loader.itemsVar.signal.combineWith(searchVar.signal).map {
         case (items, q) =>
           val needle = q.trim.toLowerCase
-          if (needle.isEmpty) items else items.filter(matchesSearch(_, needle))
+          if (needle.isEmpty) items else items.filter(spec.matchesSearch(_, needle))
       }
 
-    LoadState(loader, searchVar, filtered, runServerSearch)
+    val searchBox: HtmlElement =
+      input(
+        cls := "search-input",
+        placeholder := spec.searchPlaceholder,
+        controlled(value <-- searchVar.signal, onInput.mapToValue --> searchVar.writer),
+        onFocus --> (_ => spec.onSearchFocus()),
+        onInput(_.debounce(spec.debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+          Observer[String](runServerSearch)
+      )
   }
 
-  private def searchBox(
-      state: LoadState[?],
-      searchPlaceholder: String,
-      debounceMs: Int,
-      onSearchFocus: () => Unit
-  ): HtmlElement =
-    input(
-      cls := "search-input",
-      placeholder := searchPlaceholder,
-      controlled(value <-- state.searchVar.signal, onInput.mapToValue --> state.searchVar.writer),
-      onFocus --> (_ => onSearchFocus()),
-      onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
-        Observer[String](state.runServerSearch)
-    )
-
-  def apply[T](
-      title: String,
-      searchPlaceholder: String,
-      columns: List[(String, T => String)],
-      rowKey: T => String,
-      matchesSearch: (T, String) => Boolean,
-      sampleData: List[T],
-      fetchPage: (Int, String) => Future[List[T]],
-      renderCreateForm: (T => Unit, () => Unit) => HtmlElement,
-      renderEditForm: (T, T => Unit, () => Unit, () => Unit) => HtmlElement,
-      pageSize: Int = Http.defaultPageSize,
-      serverSearch: Boolean = false,
-      debounceMs: Int = 350,
-      minSearchLength: Int = 0,
-      renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
-      onSearchFocus: () => Unit = () => ()
+  /** Toolbar, table, pagination and detail panel, loading page 1 on mount. `toolbarActions` go after the search box and
+    * any extra toolbar controls.
+    */
+  private def shell[T](
+      spec: EntityListSpec[T],
+      state: ListState[T],
+      selectedKey: Signal[Option[String]],
+      onRowClick: T => Unit,
+      detail: Signal[Option[HtmlElement]],
+      toolbarActions: List[HtmlElement]
   ): HtmlElement = {
-
-    val state = buildLoadState(fetchPage, matchesSearch, sampleData, pageSize, serverSearch, minSearchLength)
-    import state.*
-
-    val detailModeVar = Var[DetailMode[T]](DetailMode.NoSelection)
-
     val toolbar = div(
       cls := "entity-toolbar",
-      searchBox(state, searchPlaceholder, debounceMs, onSearchFocus),
-      renderExtraToolbar(() => loader.reload(), () => searchVar.set("")),
-      button(cls := "btn btn-add", "+ Add", onClick --> (_ => detailModeVar.set(DetailMode.Creating)))
+      state.searchBox,
+      spec.renderExtraToolbar(() => state.loader.reload(), () => state.searchVar.set("")),
+      toolbarActions
     )
 
     val list = EntityTable[T](
-      columns = columns,
-      rows = filtered,
-      rowKey = rowKey,
-      selectedKey = detailModeVar.signal.map {
-        case DetailMode.Editing(item) => Some(rowKey(item))
-        case _ => None
-      },
-      onRowClick = item => detailModeVar.set(DetailMode.Editing(item)),
-      loading = loader.loadingVar.signal,
-      error = loader.errorVar.signal
+      columns = spec.columns,
+      rows = state.filtered,
+      rowKey = spec.rowKey,
+      selectedKey = selectedKey,
+      onRowClick = onRowClick,
+      loading = state.loader.loadingVar.signal,
+      error = state.loader.errorVar.signal
     )
+
+    MasterDetailShell(spec.title, toolbar, div(list, state.loader.paginationBar), detail)
+      .amend(onMountCallback(_ => state.loader.load(1, "")))
+  }
+
+  def apply[T](
+      spec: EntityListSpec[T],
+      renderCreateForm: (T => Unit, () => Unit) => HtmlElement,
+      renderEditForm: (T, T => Unit, () => Unit, () => Unit) => HtmlElement
+  ): HtmlElement = {
+    val state = ListState(spec)
+    val items = state.loader.itemsVar
+    val detailModeVar = Var[DetailMode[T]](DetailMode.NoSelection)
+    def closeDetail(): Unit = detailModeVar.set(DetailMode.NoSelection)
+    def sameKey(a: T, b: T): Boolean = spec.rowKey(a) == spec.rowKey(b)
 
     val detail: Signal[Option[HtmlElement]] = detailModeVar.signal.map {
       case DetailMode.NoSelection =>
         None
 
       case DetailMode.Creating =>
-        Some(
-          renderCreateForm(
-            created => { loader.itemsVar.update(_ :+ created); detailModeVar.set(DetailMode.NoSelection) },
-            () => detailModeVar.set(DetailMode.NoSelection)
-          )
-        )
+        Some(renderCreateForm(created => { items.update(_ :+ created); closeDetail() }, () => closeDetail()))
 
       case DetailMode.Editing(item) =>
         Some(
           renderEditForm(
             item,
-            updated => {
-              loader.itemsVar.update(_.map(i => if (rowKey(i) == rowKey(item)) updated else i))
-              detailModeVar.set(DetailMode.NoSelection)
-            },
-            () => {
-              loader.itemsVar.update(_.filterNot(i => rowKey(i) == rowKey(item)))
-              detailModeVar.set(DetailMode.NoSelection)
-            },
-            () => detailModeVar.set(DetailMode.NoSelection)
+            updated => { items.update(_.map(i => if (sameKey(i, item)) updated else i)); closeDetail() },
+            () => { items.update(_.filterNot(sameKey(_, item))); closeDetail() },
+            () => closeDetail()
           )
         )
     }
 
-    MasterDetailShell(title, toolbar, div(list, loader.paginationBar), detail)
-      .amend(onMountCallback(_ => loader.load(1, "")))
+    shell(
+      spec,
+      state,
+      selectedKey = detailModeVar.signal.map {
+        case DetailMode.Editing(item) => Some(spec.rowKey(item))
+        case _ => None
+      },
+      onRowClick = item => detailModeVar.set(DetailMode.Editing(item)),
+      detail = detail,
+      toolbarActions =
+        List(button(cls := "btn btn-add", "+ Add", onClick --> (_ => detailModeVar.set(DetailMode.Creating))))
+    )
   }
 
-  /** Read-only counterpart to `apply`: same paginated loading/search/sample-data-fallback behavior, but no "+ Add"
-    * button and no write actions in the detail panel — clicking a row shows every column as a static field (via
-    * `FormField.readOnly`) with just a Close button, exactly like the hand-rolled read-only detail view in
-    * `FlightInstancesPage`. Used for the `/view/...` preview pages until the backend's real roles/permissions module
-    * decides who gets write access.
+  /** Read-only counterpart to `apply`: same list behavior, but no "+ Add" button and no write actions. Clicking a row
+    * shows `detailFields` (the table's columns by default) as static fields with just a Close button. Used by Flight
+    * Instances and the `/view/...` preview pages.
     */
-  def readOnly[T](
-      title: String,
-      searchPlaceholder: String,
-      columns: List[(String, T => String)],
-      rowKey: T => String,
-      matchesSearch: (T, String) => Boolean,
-      sampleData: List[T],
-      fetchPage: (Int, String) => Future[List[T]],
-      pageSize: Int = Http.defaultPageSize,
-      serverSearch: Boolean = false,
-      debounceMs: Int = 350,
-      minSearchLength: Int = 0,
-      renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
-      onSearchFocus: () => Unit = () => (),
-      detailFields: List[(String, T => String)] = Nil
-  ): HtmlElement = {
-
-    val state = buildLoadState(fetchPage, matchesSearch, sampleData, pageSize, serverSearch, minSearchLength)
-    import state.*
-
-    // Fields shown for a selected row; the table's columns unless the page wants more (e.g. an ID too long for a column)
-    val fields = if (detailFields.isEmpty) columns else detailFields
-
+  def readOnly[T](spec: EntityListSpec[T], detailFields: List[(String, T => String)] = Nil): HtmlElement = {
+    val state = ListState(spec)
+    val fields = if (detailFields.isEmpty) spec.columns else detailFields
     val selectedVar = Var(Option.empty[T])
 
-    val toolbar = div(
-      cls := "entity-toolbar",
-      searchBox(state, searchPlaceholder, debounceMs, onSearchFocus),
-      renderExtraToolbar(() => loader.reload(), () => searchVar.set(""))
-    )
+    val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map(_.map { item =>
+      div(
+        cls := "detail-form",
+        div(cls := "detail-heading", spec.title),
+        fields.map { case (label, extract) => FormField.readOnly(label, extract(item)) },
+        FormActions.close(() => selectedVar.set(None))
+      )
+    })
 
-    val list = EntityTable[T](
-      columns = columns,
-      rows = filtered,
-      rowKey = rowKey,
-      selectedKey = selectedVar.signal.map(_.map(rowKey)),
+    shell(
+      spec,
+      state,
+      selectedKey = selectedVar.signal.map(_.map(spec.rowKey)),
       onRowClick = item => selectedVar.set(Some(item)),
-      loading = loader.loadingVar.signal,
-      error = loader.errorVar.signal
+      detail = detail,
+      toolbarActions = Nil
     )
-
-    val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map {
-      case None =>
-        None
-      case Some(item) =>
-        Some(
-          div(
-            cls := "detail-form",
-            div(cls := "detail-heading", title),
-            fields.map { case (label, extract) => FormField.readOnly(label, extract(item)) },
-            FormActions.close(() => selectedVar.set(None))
-          )
-        )
-    }
-
-    MasterDetailShell(title, toolbar, div(list, loader.paginationBar), detail)
-      .amend(onMountCallback(_ => loader.load(1, "")))
   }
 }

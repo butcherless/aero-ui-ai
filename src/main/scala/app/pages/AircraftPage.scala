@@ -5,6 +5,7 @@ import app.api.Http.given
 import app.components.AsyncAction
 import app.components.DebouncedFilterInput
 import app.components.EntityCrudPage
+import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
 import app.models.AircraftDto
@@ -148,10 +149,11 @@ object AircraftPage {
       a.description.toLowerCase.contains(needle) ||
       a.airlineIcao.toLowerCase.contains(needle)
 
-  def apply(): HtmlElement = {
+  // Built per page instance: the registration/airline filters' state must not outlive the page.
+  private def listSpec(): EntityListSpec[AircraftDto] = {
     val registrationVar = Var("")
     val airlineFilterVar = Var("")
-    EntityCrudPage[AircraftDto](
+    EntityListSpec[AircraftDto](
       title = "Aircraft",
       searchPlaceholder = "Search aircraft (registration, type, airline)…",
       columns = columns,
@@ -159,26 +161,12 @@ object AircraftPage {
       matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
-      renderCreateForm = createForm,
-      renderEditForm = editForm,
       renderExtraToolbar = extraToolbar(registrationVar, airlineFilterVar),
       onSearchFocus = () => { registrationVar.set(""); airlineFilterVar.set("") }
     )
   }
 
-  def readOnly(): HtmlElement = {
-    val registrationVar = Var("")
-    val airlineFilterVar = Var("")
-    EntityCrudPage.readOnly[AircraftDto](
-      title = "Aircraft",
-      searchPlaceholder = "Search aircraft (registration, type, airline)…",
-      columns = columns,
-      rowKey = rowKey,
-      matchesSearch = matchesSearch,
-      sampleData = sampleData,
-      fetchPage = fetchAircraft(registrationVar, airlineFilterVar),
-      renderExtraToolbar = extraToolbar(registrationVar, airlineFilterVar),
-      onSearchFocus = () => { registrationVar.set(""); airlineFilterVar.set("") }
-    )
-  }
+  def apply(): HtmlElement = EntityCrudPage(listSpec(), createForm, editForm)
+
+  def readOnly(): HtmlElement = EntityCrudPage.readOnly(listSpec())
 }

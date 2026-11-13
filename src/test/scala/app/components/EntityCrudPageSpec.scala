@@ -18,13 +18,15 @@ class EntityCrudPageSpec extends LaminarMountSpec {
   private def buildPage(): dom.html.Element =
     renderRoot(
       EntityCrudPage[Item](
-        title = "Items",
-        searchPlaceholder = "Search…",
-        columns = List("Name" -> (_.name)),
-        rowKey = _.id,
-        matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
-        sampleData = Nil,
-        fetchPage = (_, _) => Promise[List[Item]]().future, // never resolves
+        EntityListSpec(
+          title = "Items",
+          searchPlaceholder = "Search…",
+          columns = List("Name" -> (_.name)),
+          rowKey = _.id,
+          matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
+          sampleData = Nil,
+          fetchPage = (_, _) => Promise[List[Item]]().future // never resolves
+        ),
         renderCreateForm = (onCreated, onCancel) =>
           div(
             button("do-create", onClick --> (_ => onCreated(Item("new", "New Item")))),

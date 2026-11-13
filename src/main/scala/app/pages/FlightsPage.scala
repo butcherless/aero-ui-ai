@@ -4,6 +4,7 @@ import app.api.FlightsApi
 import app.api.Http.given
 import app.components.AsyncAction
 import app.components.EntityCrudPage
+import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
 import app.models.CreateFlightRequest
@@ -120,27 +121,17 @@ object FlightsPage {
       f.destinationIata.toLowerCase.contains(needle) ||
       f.airlineIcao.toLowerCase.contains(needle)
 
-  def apply(): HtmlElement =
-    EntityCrudPage[FlightDto](
-      title = "Flights",
-      searchPlaceholder = "Search flight (code, origin, destination, airline)…",
-      columns = columns,
-      rowKey = rowKey,
-      matchesSearch = matchesSearch,
-      sampleData = sampleData,
-      fetchPage = (page, _) => FlightsApi.list(page = page),
-      renderCreateForm = createForm,
-      renderEditForm = editForm
-    )
+  private val listSpec = EntityListSpec[FlightDto](
+    title = "Flights",
+    searchPlaceholder = "Search flight (code, origin, destination, airline)…",
+    columns = columns,
+    rowKey = rowKey,
+    matchesSearch = matchesSearch,
+    sampleData = sampleData,
+    fetchPage = (page, _) => FlightsApi.list(page = page)
+  )
 
-  def readOnly(): HtmlElement =
-    EntityCrudPage.readOnly[FlightDto](
-      title = "Flights",
-      searchPlaceholder = "Search flight (code, origin, destination, airline)…",
-      columns = columns,
-      rowKey = rowKey,
-      matchesSearch = matchesSearch,
-      sampleData = sampleData,
-      fetchPage = (page, _) => FlightsApi.list(page = page)
-    )
+  def apply(): HtmlElement = EntityCrudPage(listSpec, createForm, editForm)
+
+  def readOnly(): HtmlElement = EntityCrudPage.readOnly(listSpec)
 }

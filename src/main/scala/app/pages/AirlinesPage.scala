@@ -6,6 +6,7 @@ import app.api.Http.given
 import app.components.AsyncAction
 import app.components.DebouncedFilterInput
 import app.components.EntityCrudPage
+import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
 import app.models.AirlineDto
@@ -145,9 +146,10 @@ object AirlinesPage {
       a.alias.exists(_.toLowerCase.contains(needle)) ||
       a.iata.exists(_.toLowerCase.contains(needle))
 
-  def apply(): HtmlElement = {
+  // Built per page instance: the country filter's state must not outlive the page.
+  private def listSpec(): EntityListSpec[AirlineDto] = {
     val countryFilterVar = Var("")
-    EntityCrudPage[AirlineDto](
+    EntityListSpec[AirlineDto](
       title = "Airlines",
       searchPlaceholder = "Search airline by name (3+ characters)…",
       columns = columns,
@@ -155,8 +157,6 @@ object AirlinesPage {
       matchesSearch = matchesSearch,
       sampleData = sampleData,
       fetchPage = fetchAirlines(countryFilterVar),
-      renderCreateForm = createForm,
-      renderEditForm = editForm,
       serverSearch = true,
       minSearchLength = MinNameSearchLength,
       renderExtraToolbar = (reload, clearSearch) => countryFilterControl(countryFilterVar, reload, clearSearch),
@@ -164,20 +164,7 @@ object AirlinesPage {
     )
   }
 
-  def readOnly(): HtmlElement = {
-    val countryFilterVar = Var("")
-    EntityCrudPage.readOnly[AirlineDto](
-      title = "Airlines",
-      searchPlaceholder = "Search airline by name (3+ characters)…",
-      columns = columns,
-      rowKey = rowKey,
-      matchesSearch = matchesSearch,
-      sampleData = sampleData,
-      fetchPage = fetchAirlines(countryFilterVar),
-      serverSearch = true,
-      minSearchLength = MinNameSearchLength,
-      renderExtraToolbar = (reload, clearSearch) => countryFilterControl(countryFilterVar, reload, clearSearch),
-      onSearchFocus = () => countryFilterVar.set("")
-    )
-  }
+  def apply(): HtmlElement = EntityCrudPage(listSpec(), createForm, editForm)
+
+  def readOnly(): HtmlElement = EntityCrudPage.readOnly(listSpec())
 }

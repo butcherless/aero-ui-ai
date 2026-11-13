@@ -30,18 +30,20 @@ class EntityCrudPageSearchSpec extends LaminarAsyncMountSpec {
   ): dom.html.Element =
     renderRoot(
       EntityCrudPage[Item](
-        title = "Items",
-        searchPlaceholder = "Search…",
-        columns = List("Name" -> (_.name)),
-        rowKey = _.id,
-        matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
-        sampleData = Nil,
-        fetchPage = fetchPage,
+        EntityListSpec(
+          title = "Items",
+          searchPlaceholder = "Search…",
+          columns = List("Name" -> (_.name)),
+          rowKey = _.id,
+          matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
+          sampleData = Nil,
+          fetchPage = fetchPage,
+          serverSearch = serverSearch,
+          debounceMs = 20,
+          minSearchLength = minSearchLength
+        ),
         renderCreateForm = (_, _) => div(),
-        renderEditForm = (_, _, _, _) => div(),
-        serverSearch = serverSearch,
-        debounceMs = 20,
-        minSearchLength = minSearchLength
+        renderEditForm = (_, _, _, _) => div()
       )
     )
 

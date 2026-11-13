@@ -20,13 +20,15 @@ class EntityCrudPageReadOnlySpec extends LaminarAsyncMountSpec {
   ): dom.html.Element =
     renderRoot(
       EntityCrudPage.readOnly[Item](
-        title = "Items",
-        searchPlaceholder = "Search…",
-        columns = List("Name" -> (_.name)),
-        rowKey = _.id,
-        matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
-        sampleData = Nil,
-        fetchPage = (_, _) => promise.future,
+        EntityListSpec(
+          title = "Items",
+          searchPlaceholder = "Search…",
+          columns = List("Name" -> (_.name)),
+          rowKey = _.id,
+          matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
+          sampleData = Nil,
+          fetchPage = (_, _) => promise.future
+        ),
         detailFields = detailFields
       )
     )

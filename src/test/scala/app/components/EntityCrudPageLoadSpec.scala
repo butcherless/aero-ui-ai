@@ -23,13 +23,15 @@ class EntityCrudPageLoadSpec extends LaminarAsyncMountSpec {
   ): dom.html.Element =
     renderRoot(
       EntityCrudPage[Item](
-        title = "Items",
-        searchPlaceholder = "Search…",
-        columns = List("Name" -> (_.name)),
-        rowKey = _.id,
-        matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
-        sampleData = sampleData,
-        fetchPage = fetchPage,
+        EntityListSpec(
+          title = "Items",
+          searchPlaceholder = "Search…",
+          columns = List("Name" -> (_.name)),
+          rowKey = _.id,
+          matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
+          sampleData = sampleData,
+          fetchPage = fetchPage
+        ),
         renderCreateForm = (_, _) => div(),
         renderEditForm = (_, _, _, _) => div()
       )

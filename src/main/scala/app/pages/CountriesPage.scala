@@ -4,6 +4,7 @@ import app.api.CountriesApi
 import app.api.Http.given
 import app.components.AsyncAction
 import app.components.EntityCrudPage
+import app.components.EntityListSpec
 import app.components.FormActions
 import app.components.FormField
 import app.models.CountryDto
@@ -81,31 +82,19 @@ object CountriesPage {
   private def matchesSearch(c: CountryDto, needle: String): Boolean =
     c.name.toLowerCase.contains(needle) || c.code.toLowerCase.contains(needle)
 
-  def apply(): HtmlElement =
-    EntityCrudPage[CountryDto](
-      title = "Countries",
-      searchPlaceholder = "Search country by name (3+ characters)…",
-      columns = columns,
-      rowKey = rowKey,
-      matchesSearch = matchesSearch,
-      sampleData = sampleData,
-      fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
-      renderCreateForm = createForm,
-      renderEditForm = editForm,
-      minSearchLength = MinNameSearchLength,
-      serverSearch = true
-    )
+  private val listSpec = EntityListSpec[CountryDto](
+    title = "Countries",
+    searchPlaceholder = "Search country by name (3+ characters)…",
+    columns = columns,
+    rowKey = rowKey,
+    matchesSearch = matchesSearch,
+    sampleData = sampleData,
+    fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
+    serverSearch = true,
+    minSearchLength = MinNameSearchLength
+  )
 
-  def readOnly(): HtmlElement =
-    EntityCrudPage.readOnly[CountryDto](
-      title = "Countries",
-      searchPlaceholder = "Search country by name (3+ characters)…",
-      columns = columns,
-      rowKey = rowKey,
-      matchesSearch = matchesSearch,
-      sampleData = sampleData,
-      fetchPage = (page, query) => CountriesApi.list(name = nameFilter(query), page = page),
-      minSearchLength = MinNameSearchLength,
-      serverSearch = true
-    )
+  def apply(): HtmlElement = EntityCrudPage(listSpec, createForm, editForm)
+
+  def readOnly(): HtmlElement = EntityCrudPage.readOnly(listSpec)
 }

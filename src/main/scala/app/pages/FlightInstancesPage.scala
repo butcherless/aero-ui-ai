@@ -2,6 +2,7 @@ package app.pages
 
 import app.api.FlightInstancesApi
 import app.components.EntityCrudPage
+import app.components.EntityListSpec
 import app.models.FlightInstanceDto
 import com.raquo.laminar.api.L.*
 
@@ -37,15 +38,17 @@ object FlightInstancesPage {
       fi.registration.toLowerCase.contains(needle) ||
       fi.id.toLowerCase.contains(needle)
 
+  private val listSpec = EntityListSpec[FlightInstanceDto](
+    title = "Flight Instances",
+    searchPlaceholder = "Search instance (flight, registration, id)…",
+    columns = columns,
+    rowKey = _.id,
+    matchesSearch = matchesSearch,
+    sampleData = sampleData,
+    fetchPage = (page, _) => FlightInstancesApi.list(page = page)
+  )
+
+  // The ID is too long for a table column, so it only appears in the detail panel.
   def apply(): HtmlElement =
-    EntityCrudPage.readOnly[FlightInstanceDto](
-      title = "Flight Instances",
-      searchPlaceholder = "Search instance (flight, registration, id)…",
-      columns = columns,
-      rowKey = _.id,
-      matchesSearch = matchesSearch,
-      sampleData = sampleData,
-      fetchPage = (page, _) => FlightInstancesApi.list(page = page),
-      detailFields = ("ID" -> ((fi: FlightInstanceDto) => fi.id)) :: columns
-    )
+    EntityCrudPage.readOnly(listSpec, detailFields = ("ID" -> ((fi: FlightInstanceDto) => fi.id)) :: columns)
 }

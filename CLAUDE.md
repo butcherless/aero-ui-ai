@@ -43,7 +43,7 @@ Under `src/main/scala/app/`, bottom to top:
   - `EntityCrudPage`: the main one, a generic list/search/select/create/edit page, with `EntityCrudPage.readOnly` for `/view/...` and Flight Instances. Its search filters client-side *within the current page*.
   - `PagedLoader`: the paginated loading, sample-data fallback and "latest request wins" logic behind every list. `EntityCrudPage` and `RoutesPage` both use it.
   - `EntityTable`, `FormField`, `FormActions`, `Pagination`, `AsyncAction.run`, and `DebouncedFilterInput` (the secondary filter box, distinct from `EntityCrudPage`'s own search).
-- **`pages/*Page.scala`** has one page per entity, plus `LoginPage` and `ProfilePage` (links to the read-only previews). Countries, Airports, Airlines, Aircraft and Flights are thin `EntityCrudPage[Dto](...)` calls; Flight Instances is a thin `EntityCrudPage.readOnly` call.
+- **`pages/*Page.scala`** has one page per entity, plus `LoginPage` and `ProfilePage` (links to the read-only previews). Countries, Airports, Airlines, Aircraft and Flights each define one `EntityListSpec` and pass it to both `EntityCrudPage(spec, createForm, editForm)` and `EntityCrudPage.readOnly(spec)`; Flight Instances only uses `readOnly`.
 - **`router/AppRouter.scala`** is a dependency-free History API router. A new page needs a `Page` case, a path mapping, a case in `App.scala`, and a link in `Sidebar.scala`.
 
 **Pagination:** `*Api.list()` fetches `Http.defaultPageSize` (20) per page; the backend caps `pageSize` at 100. Responses have no total count, so "Next" is enabled whenever the last fetch returned a full page.
