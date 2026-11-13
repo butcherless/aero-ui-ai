@@ -3,6 +3,8 @@ package app.pages
 import app.api.Http.given
 import app.api.RoutesApi
 import app.components.AsyncAction
+import app.components.DetailMode
+import app.components.DetailMode.*
 import app.components.EntityTable
 import app.components.FormActions
 import app.components.FormField
@@ -168,12 +170,7 @@ object RoutesPage {
       error = error
     )
 
-  private sealed trait DetailMode
-  private case object NoSelection extends DetailMode
-  private case object Creating extends DetailMode
-  private case class Editing(item: RouteDto) extends DetailMode
-
-  private def createForm(itemsVar: Var[List[RouteDto]], detailModeVar: Var[DetailMode]): HtmlElement = {
+  private def createForm(itemsVar: Var[List[RouteDto]], detailModeVar: Var[DetailMode[RouteDto]]): HtmlElement = {
     val originVar = Var("")
     val destinationVar = Var("")
     val distanceVar = Var("")
@@ -223,7 +220,7 @@ object RoutesPage {
     val state = buildBrowseState()
     import state.*
 
-    val detailModeVar = Var[DetailMode](NoSelection)
+    val detailModeVar = Var[DetailMode[RouteDto]](NoSelection)
 
     val toolbar = div(
       cls := "entity-toolbar",
@@ -234,7 +231,7 @@ object RoutesPage {
 
     val list = routeTable(
       rows = loader.itemsVar.signal,
-      selectedKey = detailModeVar.signal.map { case Editing(r) => Some(rowKey(r)); case _ => None },
+      selectedKey = detailModeVar.signal.map(_.editing.map(rowKey)),
       onRowClick = item => detailModeVar.set(Editing(item)),
       loading = loader.loadingVar.signal,
       error = loader.errorVar.signal

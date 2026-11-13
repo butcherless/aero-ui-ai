@@ -9,11 +9,16 @@ import scala.concurrent.Future
 
 /** Selection state shared by every entity CRUD page: nothing selected, creating a new item, or editing an existing one.
   */
-sealed trait DetailMode[+T]
-object DetailMode {
-  case object NoSelection extends DetailMode[Nothing]
-  case object Creating extends DetailMode[Nothing]
-  case class Editing[T](item: T) extends DetailMode[T]
+enum DetailMode[+T] {
+  case NoSelection extends DetailMode[Nothing]
+  case Creating extends DetailMode[Nothing]
+  case Editing[T](item: T) extends DetailMode[T]
+
+  /** The item being edited, if any: what the list highlights as selected. */
+  def editing: Option[T] = this match {
+    case Editing(item) => Some(item)
+    case NoSelection | Creating => None
+  }
 }
 
 /** How an entity's list is shown, loaded and searched. A page defines it once and passes it to both
@@ -147,10 +152,7 @@ object EntityCrudPage {
     shell(
       spec,
       state,
-      selectedKey = detailModeVar.signal.map {
-        case DetailMode.Editing(item) => Some(spec.rowKey(item))
-        case _ => None
-      },
+      selectedKey = detailModeVar.signal.map(_.editing.map(spec.rowKey)),
       onRowClick = item => detailModeVar.set(DetailMode.Editing(item)),
       detail = detail,
       toolbarActions =
