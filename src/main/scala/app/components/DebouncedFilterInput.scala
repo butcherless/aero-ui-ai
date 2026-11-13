@@ -1,7 +1,6 @@
 package app.components
 
 import com.raquo.laminar.api.L.*
-import org.scalajs.dom
 
 /** A single search-input box that auto-fires `reload` after `debounceMs` of no typing, once the trimmed value reaches
   * `minLength` characters (or is cleared back to empty). Shared by every entity page's secondary filter box (Airports'
@@ -23,7 +22,7 @@ object DebouncedFilterInput {
       placeholder := placeholderText,
       controlled(value <-- filterVar.signal, onInput.mapToValue --> filterVar.writer),
       onFocus --> (_ => onFocusExtra()),
-      onInput(_.debounce(debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+      onInput.mapToValue.compose(_.debounce(debounceMs)) -->
         Observer[String] { v =>
           val trimmed = v.trim
           if (trimmed.isEmpty || trimmed.length >= minLength) reload()

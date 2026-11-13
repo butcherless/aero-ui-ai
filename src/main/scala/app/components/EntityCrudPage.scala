@@ -3,7 +3,6 @@ package app.components
 import app.api.Http
 import app.api.Http.given
 import com.raquo.laminar.api.L.*
-import org.scalajs.dom
 
 import scala.concurrent.Future
 
@@ -83,7 +82,7 @@ object EntityCrudPage {
         placeholder := spec.searchPlaceholder,
         controlled(value <-- searchVar.signal, onInput.mapToValue --> searchVar.writer),
         onFocus --> (_ => spec.onSearchFocus()),
-        onInput(_.debounce(spec.debounceMs).map(_.target.asInstanceOf[dom.html.Input].value)) -->
+        onInput.mapToValue.compose(_.debounce(spec.debounceMs)) -->
           Observer[String](runServerSearch)
       )
   }
