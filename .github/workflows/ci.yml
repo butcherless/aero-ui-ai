@@ -41,11 +41,12 @@ jobs:
       - name: Setup SBT
         uses: sbt/setup-sbt@v1
 
-      - name: Cache incremental compilation state
+      - name: Restore incremental compilation state
         # setup-java's `cache: sbt` stores downloaded dependencies only, never compiled output.
         # Keyed on the commit; restore-keys falls back to the most recent state, so only what
         # changed is recompiled (scalafix's semantic rules need a full compile otherwise).
-        uses: actions/cache@v6
+        id: restore-target
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/target
@@ -65,6 +66,17 @@ jobs:
       - name: Check formatting and lint, test, and link the production bundle
         # One sbt invocation: each separate `sbt` call starts a new JVM and reloads the build.
         run: sbt scalafmtCheckAll "scalafixAll --check" test fullLinkJS
+
+      - name: Save incremental compilation state
+        # Not on pull requests: a PR's cache is scoped to its merge ref, so main can never restore
+        # it, and saving one per PR push only churns the repository's cache quota. Same split as
+        # aero-hex-ai's scala.yml.
+        if: github.event_name != 'pull_request'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            **/target
+          key: ${{ steps.restore-target.outputs.cache-primary-key }}
 
       - name: Build frontend
         run: npm run build
