@@ -177,11 +177,15 @@ object EntityCrudPage {
       debounceMs: Int = 350,
       minSearchLength: Int = 0,
       renderExtraToolbar: (() => Unit, () => Unit) => List[HtmlElement] = (_, _) => Nil,
-      onSearchFocus: () => Unit = () => ()
+      onSearchFocus: () => Unit = () => (),
+      detailFields: List[(String, T => String)] = Nil
   ): HtmlElement = {
 
     val state = buildLoadState(fetchPage, matchesSearch, sampleData, pageSize, serverSearch, minSearchLength)
     import state.*
+
+    // Fields shown for a selected row; the table's columns unless the page wants more (e.g. an ID too long for a column)
+    val fields = if (detailFields.isEmpty) columns else detailFields
 
     val selectedVar = Var(Option.empty[T])
 
@@ -209,7 +213,7 @@ object EntityCrudPage {
           div(
             cls := "detail-form",
             div(cls := "detail-heading", title),
-            columns.map { case (label, extract) => FormField.readOnly(label, extract(item)) },
+            fields.map { case (label, extract) => FormField.readOnly(label, extract(item)) },
             FormActions.close(() => selectedVar.set(None))
           )
         )

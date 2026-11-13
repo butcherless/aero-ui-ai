@@ -40,16 +40,17 @@ Under `src/main/scala/app/`, bottom to top:
 - **`models/Dtos.scala`** has case classes matching the OpenAPI schemas exactly. `AirportDto`/`AirlineDto` omit the country in GET responses even though create/update requires it. That's the real API shape, so `AirportsApi.countryOf` looks it up separately.
 - **`components/`** holds generic UI pieces:
   - `MasterDetailShell`: the outer shell of every page (title, list panel, detail panel).
-  - `EntityCrudPage`: the main one, a generic list/search/select/create/edit page, with `EntityCrudPage.readOnly` for `/view/...`. Its search filters client-side *within the current page*.
+  - `EntityCrudPage`: the main one, a generic list/search/select/create/edit page, with `EntityCrudPage.readOnly` for `/view/...` and Flight Instances. Its search filters client-side *within the current page*.
+  - `PagedLoader`: the paginated loading, sample-data fallback and "latest request wins" logic behind every list. `EntityCrudPage` and `RoutesPage` both use it.
   - `EntityTable`, `FormField`, `FormActions`, `Pagination`, `AsyncAction.run`, and `DebouncedFilterInput` (the secondary filter box, distinct from `EntityCrudPage`'s own search).
-- **`pages/*Page.scala`** has one page per entity, plus `LoginPage` and `ProfilePage` (links to the read-only previews). Countries, Airports, Airlines, Aircraft and Flights are thin `EntityCrudPage[Dto](...)` calls.
+- **`pages/*Page.scala`** has one page per entity, plus `LoginPage` and `ProfilePage` (links to the read-only previews). Countries, Airports, Airlines, Aircraft and Flights are thin `EntityCrudPage[Dto](...)` calls; Flight Instances is a thin `EntityCrudPage.readOnly` call.
 - **`router/AppRouter.scala`** is a dependency-free History API router. A new page needs a `Page` case, a path mapping, a case in `App.scala`, and a link in `Sidebar.scala`.
 
 **Pagination:** `*Api.list()` fetches `Http.defaultPageSize` (20) per page; the backend caps `pageSize` at 100. Responses have no total count, so "Next" is enabled whenever the last fetch returned a full page.
 
 **Read-only pages:** `Page.ViewCountries`/`ViewAirports`/`ViewAirlines`/`ViewAircraft`/`ViewFlights`/`ViewRoutes` render `EntityCrudPage.readOnly`/`RoutesPage.readOnly`. Flight Instances is already read-only, so it has no `/view` variant.
 
-**Routes and Flight Instances are hand-rolled, not `EntityCrudPage`:** Routes has create, list/search and airline-association endpoints, but no get-by-key/update/delete. Flight Instances is read-only. Check which endpoints an entity supports before copying a pattern from another page. Both pages duplicate the pagination state by hand. `RoutesPage` has two origin/destination filters usable together, because that endpoint supports combining them.
+**Routes is hand-rolled, not `EntityCrudPage`:** it has create, list/search and airline-association endpoints, but no get-by-key/update/delete. Check which endpoints an entity supports before copying a pattern from another page. `RoutesPage` has two origin/destination filters usable together, because that endpoint supports combining them, and gets its pagination from `PagedLoader`.
 
 **The sample-data fallback is intentional:** each page tries the backend, then falls back to hardcoded samples with a visible `Http.backendUnreachableMessage` banner, so the app can be demoed without a backend. Don't remove it or suppress the banner.
 

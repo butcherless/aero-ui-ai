@@ -14,7 +14,10 @@ class EntityCrudPageReadOnlySpec extends LaminarAsyncMountSpec {
 
   private case class Item(id: String, name: String)
 
-  private def buildPage(promise: Promise[List[Item]]): dom.html.Element =
+  private def buildPage(
+      promise: Promise[List[Item]],
+      detailFields: List[(String, Item => String)] = Nil
+  ): dom.html.Element =
     renderRoot(
       EntityCrudPage.readOnly[Item](
         title = "Items",
@@ -23,7 +26,8 @@ class EntityCrudPageReadOnlySpec extends LaminarAsyncMountSpec {
         rowKey = _.id,
         matchesSearch = (item, needle) => item.name.toLowerCase.contains(needle),
         sampleData = Nil,
-        fetchPage = (_, _) => promise.future
+        fetchPage = (_, _) => promise.future,
+        detailFields = detailFields
       )
     )
 
@@ -53,6 +57,21 @@ class EntityCrudPageReadOnlySpec extends LaminarAsyncMountSpec {
       toList(root.querySelectorAll("button")).find(_.textContent == "Close").get.asInstanceOf[dom.html.Element].click()
 
       root.querySelector(".entity-detail-panel") shouldBe null
+    }
+  }
+
+  it("shows detailFields instead of the table columns in the detail panel when given") {
+    val promise = Promise[List[Item]]()
+    val root = buildPage(promise, detailFields = List("ID" -> (_.id), "Name" -> (_.name)))
+    promise.success(List(Item("id-42", "Alpha")))
+
+    promise.future.map { _ =>
+      root.querySelector("thead").textContent should not include "ID"
+      root.querySelector("tbody tr").asInstanceOf[dom.html.Element].click()
+
+      val detail = root.querySelector(".entity-detail-panel")
+      detail.textContent should include("id-42")
+      detail.textContent should include("Alpha")
     }
   }
 }
