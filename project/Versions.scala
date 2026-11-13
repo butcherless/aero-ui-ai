@@ -5,6 +5,7 @@ object Versions {
   val laminar    = "17.2.1"
   val scalaJsDom = "2.8.1"
   val upickle    = "4.4.3"
+  val macrotaskExecutor = "1.1.1"
 
   // Test
   val scalatest    = "3.2.20"

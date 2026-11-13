@@ -31,7 +31,9 @@ object Http {
   val backendUnreachableMessage: String =
     "Could not connect to the backend (http://localhost:8080). Showing sample data."
 
-  given ExecutionContext = scala.concurrent.ExecutionContext.global
+  // Not ExecutionContext.global: in Scala.js that runs callbacks as JS microtasks, which can starve I/O, timers and UI
+  // rendering, and Scala.js deprecated it in 1.8. MacrotaskExecutor is the replacement the Scala.js docs recommend.
+  given ExecutionContext = org.scalajs.macrotaskexecutor.MacrotaskExecutor
 
   /** Raised for any non-2xx response, carrying the backend's own error message when it sends one. */
   final case class ApiError(status: Int, message: String) extends RuntimeException(message)

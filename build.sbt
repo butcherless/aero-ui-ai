@@ -36,5 +36,5 @@ lazy val root = project
     semanticdbEnabled := true, // required by scalafix
     semanticdbVersion := scalafixSemanticdb.revision,
 
-    libraryDependencies ++= Seq(laminar, scalaJsDom, upickle) ++ commonTest
+    libraryDependencies ++= Seq(laminar, scalaJsDom, upickle, macrotaskExecutor) ++ commonTest
   )

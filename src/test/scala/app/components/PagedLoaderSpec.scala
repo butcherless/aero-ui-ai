@@ -1,8 +1,10 @@
 package app.components
 
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor
 import org.scalatest.funspec.AsyncFunSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.Future
 import scala.concurrent.Promise
 
@@ -10,6 +12,9 @@ import scala.concurrent.Promise
   * chain off the same Promise the loader registered its callback on first, so they run after the loader's update.
   */
 class PagedLoaderSpec extends AsyncFunSpec with Matchers {
+
+  // Same executor as the loader's callbacks, so assertions queue behind them (see LaminarAsyncMountSpec).
+  implicit override def executionContext: ExecutionContext = MacrotaskExecutor
 
   private def settled(p: Promise[?]): Future[Unit] = p.future.transformWith(_ => Future.unit)
 

@@ -13,6 +13,8 @@ object Dependencies {
   val laminar    = sjs("com.raquo", "laminar", Versions.laminar)
   val scalaJsDom = sjs("org.scala-js", "scalajs-dom", Versions.scalaJsDom)
   val upickle    = sjs("com.lihaoyi", "upickle", Versions.upickle)
+  // The ExecutionContext the Scala.js docs recommend instead of the deprecated ExecutionContext.global.
+  val macrotaskExecutor = sjs("org.scala-js", "scala-js-macrotask-executor", Versions.macrotaskExecutor)
 
   // Test — ScalaTest + Laminar's own (unpublished) domtestutils-based mounting approach
   val scalatest    = sjs("org.scalatest", "scalatest", Versions.scalatest) % Test
