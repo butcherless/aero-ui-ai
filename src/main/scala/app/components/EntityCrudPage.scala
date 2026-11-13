@@ -6,8 +6,6 @@ import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
 import scala.concurrent.Future
-import scala.util.Failure
-import scala.util.Success
 
 /** Selection state shared by every entity CRUD page: nothing selected, creating a new item, or editing an existing one.
   */
@@ -32,22 +30,14 @@ object DetailMode {
   */
 object EntityCrudPage {
 
-  /** The paginated-loading/search/sample-data-fallback state machine shared by `apply` and `readOnly` — the two only
-    * differ in what they do with a row once it's selected (full CRUD vs. read-only field dump), not in how the list
-    * itself is loaded, paged, or filtered.
+  /** The paginated-loading/search/sample-data-fallback state shared by `apply` and `readOnly` — the two only differ in
+    * what they do with a row once it's selected (full CRUD vs. read-only field dump), not in how the list itself is
+    * loaded, paged, or filtered.
     */
   private final case class LoadState[T](
-      itemsVar: Var[List[T]],
-      loadingVar: Var[Boolean],
-      errorVar: Var[Option[String]],
+      loader: PagedLoader[String, T],
       searchVar: Var[String],
-      activeQueryVar: Var[String],
-      pageVar: Var[Int],
-      hasNextVar: Var[Boolean],
       filtered: Signal[List[T]],
-      load: (Int, String) => Unit,
-      goToPrevPage: () => Unit,
-      goToNextPage: () => Unit,
       runServerSearch: String => Unit
   )
 
@@ -59,63 +49,22 @@ object EntityCrudPage {
       serverSearch: Boolean,
       minSearchLength: Int
   ): LoadState[T] = {
-    val itemsVar = Var(List.empty[T])
-    val loadingVar = Var(true)
-    val errorVar = Var(Option.empty[String])
+    val loader = PagedLoader[String, T](fetchPage, sampleData, initialQuery = "", pageSize)
     val searchVar = Var("")
-    val activeQueryVar = Var("")
-    val pageVar = Var(1)
-    val hasNextVar = Var(false)
 
-    def load(page: Int, query: String): Unit = {
-      loadingVar.set(true)
-      errorVar.set(None)
-      fetchPage(page, query).onComplete {
-        case Success(list) =>
-          loadingVar.set(false)
-          pageVar.set(page)
-          activeQueryVar.set(query)
-          hasNextVar.set(list.size >= pageSize)
-          itemsVar.set(list)
-        case Failure(ex) =>
-          val failure = Http.loadFailure(ex)
-          loadingVar.set(false)
-          errorVar.set(Some(failure.message))
-          pageVar.set(page)
-          activeQueryVar.set(query)
-          hasNextVar.set(false)
-          itemsVar.set(if (failure.useSampleData) sampleData else Nil)
-      }
-    }
-
-    def goToPrevPage(): Unit = if (pageVar.now() > 1) load(pageVar.now() - 1, activeQueryVar.now())
-    def goToNextPage(): Unit = if (hasNextVar.now()) load(pageVar.now() + 1, activeQueryVar.now())
     def runServerSearch(query: String): Unit = {
       val trimmed = query.trim
-      if (serverSearch && (trimmed.isEmpty || trimmed.length >= minSearchLength)) load(1, query)
+      if (serverSearch && (trimmed.isEmpty || trimmed.length >= minSearchLength)) loader.load(1, query)
     }
 
     val filtered: Signal[List[T]] =
-      itemsVar.signal.combineWith(searchVar.signal).map {
+      loader.itemsVar.signal.combineWith(searchVar.signal).map {
         case (items, q) =>
           val needle = q.trim.toLowerCase
           if (needle.isEmpty) items else items.filter(matchesSearch(_, needle))
       }
 
-    LoadState(
-      itemsVar,
-      loadingVar,
-      errorVar,
-      searchVar,
-      activeQueryVar,
-      pageVar,
-      hasNextVar,
-      filtered,
-      load,
-      goToPrevPage,
-      goToNextPage,
-      runServerSearch
-    )
+    LoadState(loader, searchVar, filtered, runServerSearch)
   }
 
   private def searchBox(
@@ -159,7 +108,7 @@ object EntityCrudPage {
     val toolbar = div(
       cls := "entity-toolbar",
       searchBox(state, searchPlaceholder, debounceMs, onSearchFocus),
-      renderExtraToolbar(() => load(1, activeQueryVar.now()), () => searchVar.set("")),
+      renderExtraToolbar(() => loader.reload(), () => searchVar.set("")),
       button(cls := "btn btn-add", "+ Add", onClick --> (_ => detailModeVar.set(DetailMode.Creating)))
     )
 
@@ -172,11 +121,9 @@ object EntityCrudPage {
         case _ => None
       },
       onRowClick = item => detailModeVar.set(DetailMode.Editing(item)),
-      loading = loadingVar.signal,
-      error = errorVar.signal
+      loading = loader.loadingVar.signal,
+      error = loader.errorVar.signal
     )
-
-    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
 
     val detail: Signal[Option[HtmlElement]] = detailModeVar.signal.map {
       case DetailMode.NoSelection =>
@@ -185,7 +132,7 @@ object EntityCrudPage {
       case DetailMode.Creating =>
         Some(
           renderCreateForm(
-            created => { itemsVar.update(_ :+ created); detailModeVar.set(DetailMode.NoSelection) },
+            created => { loader.itemsVar.update(_ :+ created); detailModeVar.set(DetailMode.NoSelection) },
             () => detailModeVar.set(DetailMode.NoSelection)
           )
         )
@@ -195,11 +142,11 @@ object EntityCrudPage {
           renderEditForm(
             item,
             updated => {
-              itemsVar.update(_.map(i => if (rowKey(i) == rowKey(item)) updated else i))
+              loader.itemsVar.update(_.map(i => if (rowKey(i) == rowKey(item)) updated else i))
               detailModeVar.set(DetailMode.NoSelection)
             },
             () => {
-              itemsVar.update(_.filterNot(i => rowKey(i) == rowKey(item)))
+              loader.itemsVar.update(_.filterNot(i => rowKey(i) == rowKey(item)))
               detailModeVar.set(DetailMode.NoSelection)
             },
             () => detailModeVar.set(DetailMode.NoSelection)
@@ -207,7 +154,8 @@ object EntityCrudPage {
         )
     }
 
-    MasterDetailShell(title, toolbar, div(list, pagination), detail).amend(onMountCallback(_ => load(1, "")))
+    MasterDetailShell(title, toolbar, div(list, loader.paginationBar), detail)
+      .amend(onMountCallback(_ => loader.load(1, "")))
   }
 
   /** Read-only counterpart to `apply`: same paginated loading/search/sample-data-fallback behavior, but no "+ Add"
@@ -240,7 +188,7 @@ object EntityCrudPage {
     val toolbar = div(
       cls := "entity-toolbar",
       searchBox(state, searchPlaceholder, debounceMs, onSearchFocus),
-      renderExtraToolbar(() => load(1, activeQueryVar.now()), () => searchVar.set(""))
+      renderExtraToolbar(() => loader.reload(), () => searchVar.set(""))
     )
 
     val list = EntityTable[T](
@@ -249,11 +197,9 @@ object EntityCrudPage {
       rowKey = rowKey,
       selectedKey = selectedVar.signal.map(_.map(rowKey)),
       onRowClick = item => selectedVar.set(Some(item)),
-      loading = loadingVar.signal,
-      error = errorVar.signal
+      loading = loader.loadingVar.signal,
+      error = loader.errorVar.signal
     )
-
-    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
 
     val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map {
       case None =>
@@ -269,6 +215,7 @@ object EntityCrudPage {
         )
     }
 
-    MasterDetailShell(title, toolbar, div(list, pagination), detail).amend(onMountCallback(_ => load(1, "")))
+    MasterDetailShell(title, toolbar, div(list, loader.paginationBar), detail)
+      .amend(onMountCallback(_ => loader.load(1, "")))
   }
 }

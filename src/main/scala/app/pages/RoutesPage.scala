@@ -1,6 +1,5 @@
 package app.pages
 
-import app.api.Http
 import app.api.Http.given
 import app.api.RoutesApi
 import app.components.AsyncAction
@@ -8,7 +7,7 @@ import app.components.EntityTable
 import app.components.FormActions
 import app.components.FormField
 import app.components.MasterDetailShell
-import app.components.Pagination
+import app.components.PagedLoader
 import app.models.AirlineDto
 import app.models.CreateRouteRequest
 import app.models.RouteDto
@@ -38,99 +37,39 @@ object RoutesPage {
 
   // The origin/destination browse-and-search state is identical for the editable and read-only variants — they only
   // differ in what the detail panel lets you do with a selected route, not in how the list itself is searched/paged.
+  private type Filters = (Option[String], Option[String])
+
   private final case class BrowseState(
-      itemsVar: Var[List[RouteDto]],
-      loadingVar: Var[Boolean],
-      errorVar: Var[Option[String]],
+      loader: PagedLoader[Filters, RouteDto],
       originVar: Var[String],
       destinationVar: Var[String],
-      pageVar: Var[Int],
-      hasNextVar: Var[Boolean],
-      search: () => Unit,
-      goToPrevPage: () => Unit,
-      goToNextPage: () => Unit,
-      loadInitial: () => Unit
+      search: () => Unit
   )
 
+  private def validated(raw: String): Either[String, Option[String]] = {
+    val trimmed = raw.trim.toUpperCase
+    if (trimmed.isEmpty) Right(None)
+    else if (trimmed.length == 3) Right(Some(trimmed))
+    else Left(InvalidIataMessage)
+  }
+
   private def buildBrowseState(): BrowseState = {
-    val itemsVar = Var(List.empty[RouteDto])
-    val loadingVar = Var(true)
-    val errorVar = Var(Option.empty[String])
+    val loader = PagedLoader[Filters, RouteDto](
+      (page, filters) => RoutesApi.list(filters._1, filters._2, page),
+      sampleData,
+      initialQuery = (None, None)
+    )
     val originVar = Var("")
     val destinationVar = Var("")
-    val pageVar = Var(1)
-    val hasNextVar = Var(false)
-
-    // Last-searched filters, distinct from the live text-box Vars above — mirrors EntityCrudPage's own
-    // searchVar-vs-activeQueryVar split, so Prev/Next re-fetch what was actually searched rather than whatever's
-    // currently sitting unsearched in the boxes.
-    val appliedVar = Var((Option.empty[String], Option.empty[String]))
-
-    def validated(raw: String): Either[String, Option[String]] = {
-      val trimmed = raw.trim.toUpperCase
-      if (trimmed.isEmpty) Right(None)
-      else if (trimmed.length == 3) Right(Some(trimmed))
-      else Left(InvalidIataMessage)
-    }
-
-    def load(page: Int, origin: Option[String], destination: Option[String]): Unit = {
-      loadingVar.set(true)
-      errorVar.set(None)
-      RoutesApi.list(origin, destination, page).onComplete {
-        case Success(list) =>
-          loadingVar.set(false)
-          pageVar.set(page)
-          hasNextVar.set(list.size >= Http.defaultPageSize)
-          itemsVar.set(list)
-        case Failure(ex) =>
-          val failure = Http.loadFailure(ex)
-          loadingVar.set(false)
-          errorVar.set(Some(failure.message))
-          pageVar.set(page)
-          hasNextVar.set(false)
-          itemsVar.set(if (failure.useSampleData) sampleData else Nil)
-      }
-    }
 
     def search(): Unit =
       (validated(originVar.now()), validated(destinationVar.now())) match {
-        case (Right(o), Right(d)) =>
-          appliedVar.set((o, d))
-          load(1, o, d)
-        case (Left(msg), _) => errorVar.set(Some(msg))
-        case (_, Left(msg)) => errorVar.set(Some(msg))
+        case (Right(o), Right(d)) => loader.load(1, (o, d))
+        case (Left(msg), _) => loader.errorVar.set(Some(msg))
+        case (_, Left(msg)) => loader.errorVar.set(Some(msg))
       }
 
-    def goToPrevPage(): Unit =
-      if (pageVar.now() > 1) {
-        val (o, d) = appliedVar.now()
-        load(pageVar.now() - 1, o, d)
-      }
-
-    def goToNextPage(): Unit =
-      if (hasNextVar.now()) {
-        val (o, d) = appliedVar.now()
-        load(pageVar.now() + 1, o, d)
-      }
-
-    def loadInitial(): Unit = {
-      appliedVar.set((None, None))
-      load(1, None, None)
-    }
-
-    BrowseState(
-      itemsVar,
-      loadingVar,
-      errorVar,
-      originVar,
-      destinationVar,
-      pageVar,
-      hasNextVar,
-      search,
-      goToPrevPage,
-      goToNextPage,
-      loadInitial
-    )
+    BrowseState(loader, originVar, destinationVar, search)
   }
 
   // `editable` toggles the associate-a-new-airline input and the per-chip ✕ remove button; the read-only variant
@@ -293,22 +232,21 @@ object RoutesPage {
     )
 
     val list = routeTable(
-      rows = itemsVar.signal,
+      rows = loader.itemsVar.signal,
       selectedKey = detailModeVar.signal.map { case Editing(r) => Some(rowKey(r)); case _ => None },
       onRowClick = item => detailModeVar.set(Editing(item)),
-      loading = loadingVar.signal,
-      error = errorVar.signal
+      loading = loader.loadingVar.signal,
+      error = loader.errorVar.signal
     )
-
-    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
 
     val detail: Signal[Option[HtmlElement]] = detailModeVar.signal.map {
       case NoSelection => None
-      case Creating => Some(createForm(itemsVar, detailModeVar))
+      case Creating => Some(createForm(loader.itemsVar, detailModeVar))
       case Editing(item) => Some(detailView(item, editable = true, onClose = () => detailModeVar.set(NoSelection)))
     }
 
-    MasterDetailShell("Routes", toolbar, div(list, pagination), detail).amend(onMountCallback(_ => loadInitial()))
+    MasterDetailShell("Routes", toolbar, div(list, loader.paginationBar), detail)
+      .amend(onMountCallback(_ => loader.load(1, (None, None))))
   }
 
   /** Read-only counterpart to `apply`: same origin/destination search and pagination, no "+ Add" button, and the
@@ -327,20 +265,19 @@ object RoutesPage {
     )
 
     val list = routeTable(
-      rows = itemsVar.signal,
+      rows = loader.itemsVar.signal,
       selectedKey = selectedVar.signal.map(_.map(rowKey)),
       onRowClick = item => selectedVar.set(Some(item)),
-      loading = loadingVar.signal,
-      error = errorVar.signal
+      loading = loader.loadingVar.signal,
+      error = loader.errorVar.signal
     )
-
-    val pagination = Pagination(pageVar.signal, hasNextVar.signal, goToPrevPage, goToNextPage)
 
     val detail: Signal[Option[HtmlElement]] = selectedVar.signal.map {
       case None => None
       case Some(item) => Some(detailView(item, editable = false, onClose = () => selectedVar.set(None)))
     }
 
-    MasterDetailShell("Routes", toolbar, div(list, pagination), detail).amend(onMountCallback(_ => loadInitial()))
+    MasterDetailShell("Routes", toolbar, div(list, loader.paginationBar), detail)
+      .amend(onMountCallback(_ => loader.load(1, (None, None))))
   }
 }
