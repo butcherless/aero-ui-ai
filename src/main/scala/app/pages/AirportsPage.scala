@@ -42,7 +42,7 @@ object AirportsPage {
     // The list endpoint doesn't return the country, so look it up separately to prefill the field.
     AirportsApi.countryOf(item.iata).onComplete {
       case Success(country) => countryCodeVar.set(country.code)
-      case Failure(_) => ()
+      case Failure(_) => errVar.set(Some("Couldn't load this airport's country. Enter it before saving."))
     }
 
     def save(): Unit = {

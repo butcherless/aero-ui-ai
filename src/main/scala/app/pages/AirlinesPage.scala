@@ -22,6 +22,9 @@ object AirlinesPage {
     AirlineDto("VLG", "Vueling", callsign = Some("VUELING"), iata = Some("V7"))
   )
 
+  private val MissingCountryMessage =
+    "Enter the airline's country code. The API doesn't return it, but requires it to save."
+
   private def editForm(
       item: AirlineDto,
       onSaved: AirlineDto => Unit,
@@ -32,20 +35,24 @@ object AirlinesPage {
     val aliasVar = Var(item.alias.getOrElse(""))
     val callsignVar = Var(item.callsign.getOrElse(""))
     val iataVar = Var(item.iata.getOrElse(""))
+    // The backend never returns an airline's country (and, unlike airports, has no endpoint to look it up), but
+    // requires it on update. So it starts blank and must be re-entered on every save.
     val countryCodeVar = Var("")
     val savingVar = Var(false)
     val errVar = Var(Option.empty[String])
 
-    def save(): Unit = {
-      val req = UpdateAirlineRequest(
-        nameVar.trimmed,
-        countryCodeVar.code,
-        aliasVar.optional,
-        callsignVar.optional,
-        iataVar.optionalCode
-      )
-      AsyncAction.run(savingVar, errVar)(AirlinesApi.update(item.icao, req))(onSaved)
-    }
+    def save(): Unit =
+      if (countryCodeVar.trimmed.isEmpty) errVar.set(Some(MissingCountryMessage))
+      else {
+        val req = UpdateAirlineRequest(
+          nameVar.trimmed,
+          countryCodeVar.code,
+          aliasVar.optional,
+          callsignVar.optional,
+          iataVar.optionalCode
+        )
+        AsyncAction.run(savingVar, errVar)(AirlinesApi.update(item.icao, req))(onSaved)
+      }
 
     def remove(): Unit =
       AsyncAction.run(savingVar, errVar)(AirlinesApi.delete(item.icao))(_ => onDeleted())
@@ -58,7 +65,7 @@ object AirlinesPage {
       FormField.text("Alias", aliasVar),
       FormField.text("Callsign", callsignVar),
       FormField.text("IATA", iataVar, "IB"),
-      FormField.text("Country (ISO code)", countryCodeVar, "ES"),
+      FormField.text("Country (ISO code, required)", countryCodeVar, "Not returned by the API, re-enter (e.g. ES)"),
       FormField.errorBanner(errVar),
       FormActions.saveDeleteCancel(savingVar.signal, save, remove, onCancel)
     )
