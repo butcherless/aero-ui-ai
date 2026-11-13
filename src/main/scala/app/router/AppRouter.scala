@@ -3,60 +3,33 @@ package app.router
 import com.raquo.laminar.api.L.*
 import org.scalajs.dom
 
-/** The set of pages the dashboard can show. Add a case here for every new page. */
-sealed trait Page
+/** The set of pages the dashboard can show, each with its URL path. Add a case here for every new page. */
+enum Page(val path: String) {
+  case Countries extends Page("/")
+  case Airports extends Page("/airports")
+  case Airlines extends Page("/airlines")
+  case Aircraft extends Page("/aircraft")
+  case Flights extends Page("/flights")
+  case FlightInstances extends Page("/flight-instances")
+  case Routes extends Page("/routes")
+  case Profile extends Page("/profile")
+  case ViewCountries extends Page("/view/countries")
+  case ViewAirports extends Page("/view/airports")
+  case ViewAirlines extends Page("/view/airlines")
+  case ViewAircraft extends Page("/view/aircraft")
+  case ViewFlights extends Page("/view/flights")
+  case ViewRoutes extends Page("/view/routes")
+  case Login extends Page("/login")
+}
+
 object Page {
-  case object Countries extends Page
-  case object Airports extends Page
-  case object Airlines extends Page
-  case object Aircraft extends Page
-  case object Flights extends Page
-  case object FlightInstances extends Page
-  case object Routes extends Page
-  case object Profile extends Page
-  case object ViewCountries extends Page
-  case object ViewAirports extends Page
-  case object ViewAirlines extends Page
-  case object ViewAircraft extends Page
-  case object ViewFlights extends Page
-  case object ViewRoutes extends Page
-  case object Login extends Page
 
-  def fromPath(path: String): Page = path match {
-    case "/airports" => Airports
-    case "/airlines" => Airlines
-    case "/aircraft" => Aircraft
-    case "/flights" => Flights
-    case "/flight-instances" => FlightInstances
-    case "/routes" => Routes
-    case "/profile" => Profile
-    case "/view/countries" => ViewCountries
-    case "/view/airports" => ViewAirports
-    case "/view/airlines" => ViewAirlines
-    case "/view/aircraft" => ViewAircraft
-    case "/view/flights" => ViewFlights
-    case "/view/routes" => ViewRoutes
-    case "/login" => Login
-    case _ => Countries
-  }
+  /** The page at `path`, or Countries for an unknown one. Derived from each case's `path`, so the mapping is written
+    * once.
+    */
+  def fromPath(path: String): Page = values.find(_.path == path).getOrElse(Countries)
 
-  def toPath(page: Page): String = page match {
-    case Countries => "/"
-    case Airports => "/airports"
-    case Airlines => "/airlines"
-    case Aircraft => "/aircraft"
-    case Flights => "/flights"
-    case FlightInstances => "/flight-instances"
-    case Routes => "/routes"
-    case Profile => "/profile"
-    case ViewCountries => "/view/countries"
-    case ViewAirports => "/view/airports"
-    case ViewAirlines => "/view/airlines"
-    case ViewAircraft => "/view/aircraft"
-    case ViewFlights => "/view/flights"
-    case ViewRoutes => "/view/routes"
-    case Login => "/login"
-  }
+  def toPath(page: Page): String = page.path
 }
 
 /** Minimal client-side router built directly on the browser History API.

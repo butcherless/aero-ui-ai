@@ -5,33 +5,19 @@ import org.scalatest.matchers.should.Matchers
 
 class AppRouterSpec extends AnyFunSpec with Matchers {
 
-  private val allPages = List(
-    Page.Countries,
-    Page.Airports,
-    Page.Airlines,
-    Page.Aircraft,
-    Page.Flights,
-    Page.FlightInstances,
-    Page.Routes,
-    Page.Profile,
-    Page.ViewCountries,
-    Page.ViewAirports,
-    Page.ViewAirlines,
-    Page.ViewAircraft,
-    Page.ViewFlights,
-    Page.ViewRoutes,
-    Page.Login
-  )
-
   describe("Page.toPath / fromPath") {
     it("round-trips every page through its path") {
-      allPages.foreach { page =>
+      Page.values.foreach { page =>
         Page.fromPath(Page.toPath(page)) shouldBe page
       }
     }
 
     it("maps Countries to the root path") {
       Page.toPath(Page.Countries) shouldBe "/"
+    }
+
+    it("gives every page its own path") {
+      Page.values.map(_.path).distinct should have size Page.values.length.toLong
     }
 
     it("falls back to Countries for an unknown path") {
