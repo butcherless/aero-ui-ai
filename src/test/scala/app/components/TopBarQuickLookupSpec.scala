@@ -66,6 +66,13 @@ class TopBarQuickLookupSpec extends LaminarAsyncMountSpec {
     }
   }
 
+  it("offers country, airport and airline, country first") {
+    val root = renderRoot(TopBar())
+    val options = toList(root.querySelectorAll(".quick-lookup-select option"))
+    options.map(_.getAttribute("value")) shouldBe List("country", "airport", "airline")
+    options.map(_.textContent) shouldBe List("Country", "Airport", "Airline")
+  }
+
   it("does not run a lookup when the code is left empty") {
     val root = renderRoot(TopBar())
 

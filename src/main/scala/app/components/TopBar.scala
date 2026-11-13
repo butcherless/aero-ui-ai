@@ -26,11 +26,21 @@ object TopBar {
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%239ca3af'%3E" +
       "%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8'/%3E%3C/svg%3E"
 
-  private sealed trait LookupKind
+  /** What the quick lookup searches, with its `<option>` value and label. */
+  private enum LookupKind(val value: String, val label: String) {
+    case Country extends LookupKind("country", "Country")
+    case Airport extends LookupKind("airport", "Airport")
+    case Airline extends LookupKind("airline", "Airline")
+  }
+
   private object LookupKind {
-    case object Country extends LookupKind
-    case object Airport extends LookupKind
-    case object Airline extends LookupKind
+    def fromValue(value: String): LookupKind = values.find(_.value == value).getOrElse(Country)
+  }
+
+  /** What a lookup shows: the match's summary, or that nothing matched the code. */
+  private enum LookupResult {
+    case Found(summary: String)
+    case NoMatch(code: String)
   }
 
   /** Exact-key lookup (not the per-page name search): Country by ISO code, Airport by IATA, Airline by ICAO, each via
@@ -40,7 +50,7 @@ object TopBar {
   private def quickLookup(): HtmlElement = {
     val kindVar = Var[LookupKind](LookupKind.Country)
     val codeVar = Var("")
-    val resultVar = Var(Option.empty[Either[String, String]]) // Left = error message, Right = result summary
+    val resultVar = Var(Option.empty[LookupResult])
 
     def runLookup(): Unit = {
       val code = codeVar.trimmed
@@ -52,8 +62,8 @@ object TopBar {
           case LookupKind.Airline => AirlinesApi.get(code.toUpperCase).map(a => s"${a.icao} — ${a.name}")
         }
         summary.onComplete {
-          case Success(text) => resultVar.set(Some(Right(text)))
-          case Failure(_) => resultVar.set(Some(Left(s"No match for \"$code\".")))
+          case Success(text) => resultVar.set(Some(LookupResult.Found(text)))
+          case Failure(_) => resultVar.set(Some(LookupResult.NoMatch(code)))
         }
       }
     }
@@ -65,16 +75,10 @@ object TopBar {
         select(
           cls := "quick-lookup-select",
           onChange.mapToValue --> Observer[String] { v =>
-            kindVar.set(v match {
-              case "airport" => LookupKind.Airport
-              case "airline" => LookupKind.Airline
-              case _ => LookupKind.Country
-            })
+            kindVar.set(LookupKind.fromValue(v))
             resultVar.set(None)
           },
-          option(value := "country", "Country"),
-          option(value := "airport", "Airport"),
-          option(value := "airline", "Airline")
+          LookupKind.values.toList.map(kind => option(value := kind.value, kind.label))
         ),
         input(
           cls := "quick-lookup-input",
@@ -85,8 +89,9 @@ object TopBar {
         button(cls := "btn btn-secondary", "Go", onClick --> (_ => runLookup()))
       ),
       child.maybe <-- resultVar.signal.map(_.map {
-        case Right(text) => div(cls := "quick-lookup-result", text)
-        case Left(text) => div(cls := "quick-lookup-result quick-lookup-error", text)
+        case LookupResult.Found(summary) => div(cls := "quick-lookup-result", summary)
+        case LookupResult.NoMatch(code) =>
+          div(cls := "quick-lookup-result quick-lookup-error", s"No match for \"$code\".")
       })
     )
   }
