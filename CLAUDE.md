@@ -32,6 +32,17 @@ sbt scalafmtCheckAll "scalafixAll --check"   # same check as CI
 - `.github/workflows/dependency-updates.yml` reports outdated dependencies on Fridays at 15:00 UTC or on a manual trigger, and changes nothing. `scripts/check_plugin_updates.py` and `scripts/check_actions_updates.py` are copies of the scripts in `aero-hex-ai`'s `bump-versions` skill, except that `check_actions_updates.py` also reads SHA-pinned actions (`owner/repo@<sha> # vX.Y.Z`) and actions referenced with a subpath (`actions/cache/restore`). Keep both when refreshing it from `aero-hex-ai`.
 - Third-party actions (currently only `sbt/setup-sbt`) are pinned to a commit SHA with the version in a trailing comment; `actions/*` stay on floating major tags. Dependabot updates both.
 
+## Versioning policy
+
+Mirrors `aero-hex-ai`'s policy; check with its `bump-versions` skill (pass this repo as the project root).
+
+- **Scala** — always the latest LTS or newer (`project/Versions.scala`), never a mainline "Next" release. No exception is recorded here.
+- **JDK** — Java 21 LTS, locally and in CI. **Node** — the version in `ci.yml`.
+- **sbt** — stay on the 1.x line (`project/build.properties`); a 2.x move is a deliberate migration. CI pins `sbt/setup-sbt`'s `sbt-runner-version` to the same 1.x version, because setup-sbt v1.5.15+ defaults to the sbt 2 runner; bump both together.
+- **Direct deps and sbt plugins** — stable GA. Patch/minor bumps are free; majors need a release-notes read and passing compile + tests + `fullLinkJS`.
+- **Dependabot** covers only GitHub Actions and npm (majors ignored for npm). Libraries, sbt plugins, sbt and scalafmt are checked manually with `bump-versions`.
+- **Unused declarations** — every version in `project/Versions.scala` must be used by the build; delete an unused one rather than bump it.
+
 ## Architecture
 
 Under `src/main/scala/app/`, bottom to top:
