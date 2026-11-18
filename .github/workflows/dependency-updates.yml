@@ -42,6 +42,9 @@ jobs:
       - name: Setup SBT
         uses: sbt/setup-sbt@7e114eae4f32ec3f93c851c2793376a77f384409 # v1.5.15
         with:
+          # Pin the runner to the 1.x line: setup-sbt v1.5.15+ defaults to the sbt 2 runner, and this
+          # build stays on sbt 1.x. Keep in step with project/build.properties.
+          sbt-runner-version: 1.13.1
           # Its disk cache is for sbt 2.x; on this build's sbt 1.x the folder never exists, and the
           # post step only warns that it has nothing to save.
           disk-cache: false
